@@ -13,9 +13,17 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
 const controls = new OrbitControls(camera, renderer.domElement)
 
-const x1 = new THREE.Vector3(10, 0, 0);
-const x2 = new THREE.Vector3(-10, 0, 0);
-drawEdge([x1, x2], 0.25);
+// //Draw edge
+// const x1 = new THREE.Vector3(10, 0, 0);
+// const x2 = new THREE.Vector3(-10, 0, 0);
+// drawEdge([x1, x2], 0.25);
+
+//Draw face - 4 points
+const f1 = new THREE.Vector3(0, 0, 0);
+const f2 = new THREE.Vector3(1, 0, 0);
+const f3 = new THREE.Vector3(1, 0, 1);
+const f4 = new THREE.Vector3(0, 0, 1);
+drawFace([f1, f2, f3, f4])
 
 const axesHelper = new THREE.AxesHelper(5);
 scene.add(axesHelper);
@@ -30,9 +38,6 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate)
-
-    // cube.rotation.x += 0.01
-    // cube.rotation.y += 0.01
 
     controls.update()
 
@@ -67,6 +72,31 @@ function drawEdge(points: Vector3[], thickness: number) {
     console.log([xp, yp, zp])
     cube.position.set(xp, yp, zp);
     scene.add(cube)
+
+}
+
+function drawFace(points: Vector3[]) {
+
+    const p1 = points[0];
+    const p2 = points[1];
+    const p3 = points[2];
+    const p4 = points[3];
+
+    const triangleShape = new THREE.Shape();
+    triangleShape.moveTo(p1.x, p1.z);
+    triangleShape.lineTo(p2.x, p2.z);
+    triangleShape.lineTo(p3.x, p3.z);
+    triangleShape.lineTo(p4.x, p4.z);
+    triangleShape.lineTo(p1.x, p1.z); // close path
+
+    // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
+    // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
+    const tri = new THREE.ShapeBufferGeometry(triangleShape);
+    const trimesh = new THREE.Mesh(tri, new THREE.MeshNormalMaterial({ wireframe: false, side: THREE.DoubleSide }));
+
+    console.log(trimesh)
+    trimesh.rotateX(Math.PI / 2)
+    scene.add(trimesh)
 
 }
 animate()
