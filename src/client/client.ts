@@ -51,7 +51,7 @@ function init() {
     //Plane
     const geometry = new THREE.PlaneBufferGeometry(100, 100);
     geometry.rotateX(- Math.PI / 2);
-    plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: true }));
+    plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
     scene.add(plane);
     objects.push(plane);
@@ -90,7 +90,7 @@ function render() {
 }
 
 //Json parsing
-function parseEdge(data: any) {
+function parseEdges(data: any) {
     const x = "$.cells.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
 
@@ -102,6 +102,84 @@ function parseEdge(data: any) {
 
     return vEdges;
 }
+
+function parseSlabs(data: any) {
+
+    const x = "$.cells.*.faces.*";
+    let faces = jsonpath.query(data, x);
+
+    const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
+    const slabs = vFaces.map(f => {
+        const [floorNo] = getFaceFloorNum(f);
+        return {
+            "vertex": getSlabVertex(f),
+            "floorNo": floorNo
+        }
+    });
+
+    return slabs;
+}
+
+function getFaceFloorNum(face: any) {
+    const pFloorNum = "$.edges.*.*.floor";
+    let floorNum = jsonpath.query(face, pFloorNum);
+
+    var filteredArray = floorNum.filter(function (item, pos) {
+        return floorNum.indexOf(item) == pos;
+    });
+
+
+    return filteredArray;
+}
+
+function getSlabVertex(face: any) {
+
+    const x = "$.edges.*";
+    const floorNum = "$.edges.*.*.floor";
+
+    let edges = jsonpath.query(face, x);
+
+    const listOfVertex = edges.map(e => {
+        return {
+            "start": new Vector3(e.start.x, e.start.z, e.start.y),
+            "end": new Vector3(e.end.x, e.end.z, e.end.y)
+        }
+    })
+
+    return getOrderedVertexFromEdge(listOfVertex);
+
+}
+
+function getOrderedVertexFromEdge(edges: any[]) {
+
+    const [firstV, ...restOfVs] = edges;
+
+    const orderVertex: Vector3[] = []
+    orderVertex.push(firstV.start);
+    orderVertex.push(firstV.end);
+
+    let index = firstV.end;
+    while (orderVertex.length < edges.length) {
+
+        const matchedStart = restOfVs.find(v => v.start.equals(index));
+        if (matchedStart) {
+            orderVertex.push(matchedStart.end);
+            index = matchedStart.end;
+            continue;
+        }
+
+        const matchedEnd = restOfVs.find(v => v.end.equals(index))
+        if (matchedEnd) {
+            orderVertex.push(matchedEnd.start);
+            index = matchedEnd.start;
+            continue;
+        }
+    }
+
+    return orderVertex;
+
+}
+
 
 function isEdgeVertical(points: Vector3[]) {
     const p1 = points[0];
@@ -218,6 +296,7 @@ function drawFace(points: Vector3[]) {
 
     console.log(trimesh)
     trimesh.rotateX(Math.PI / 2)
+    trimesh.position.setY(p1.y);
     scene.add(trimesh)
 
 }
@@ -227,9 +306,14 @@ function drawFace(points: Vector3[]) {
 init()
 
 //Draw edge
-let vEdge = parseEdge(skeleton);
+let vEdge = parseEdges(skeleton);
 let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
 verticalEdge.forEach(e => drawVEdge(e, 1));
+
+//Draw face
+const slabs = parseSlabs(skeleton)
+console.log(slabs)
+slabs.forEach(s => drawFace(s.vertex))
 
 // const x1 = new THREE.Vector3(10, 0, 0);
 // const x2 = new THREE.Vector3(-10, 0, 0);
