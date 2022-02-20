@@ -6,7 +6,7 @@ import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
 import { GUI } from 'dat.gui'
 
-
+const canvas = document.getElementById('canvas') as HTMLDivElement
 let camera: THREE.PerspectiveCamera;
 let scene: THREE.Scene;
 let renderer: THREE.WebGL1Renderer;
@@ -42,7 +42,7 @@ const pickableObjects: THREE.Mesh[] = [];
 let currentPickedObject: THREE.Object3D | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
-const debugDiv = document.getElementById('debug1') as HTMLDivElement
+const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
 
 //GUI
 const gui = new GUI()
@@ -65,7 +65,7 @@ function init() {
     renderer = new THREE.WebGL1Renderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    canvas.appendChild(renderer.domElement);
 
     //Light
     light = new THREE.PointLight(0xffffff, 2)
@@ -74,7 +74,7 @@ function init() {
 
     //Stat
     stats = Stats()
-    document.body.appendChild(stats.dom)
+    canvas.appendChild(stats.dom)
 
     //Raycaster
     raycaster = new THREE.Raycaster();
@@ -201,7 +201,7 @@ function onDocumentMouseDown(event: MouseEvent) {
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object;
-        debugDiv.innerText = `Id: ${currentPickedObject.uuid}`
+        debugDiv.value = JSON.stringify(currentPickedObject.userData, null, 2);
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -244,7 +244,6 @@ function drawEdge(points: Vector3[], thickness: number) {
     const yp = (p1.y - p2.y) / 2;
     const zp = (p1.z - p2.z) / 2;
 
-    console.log([xp, yp, zp])
     cube.position.set(xp, yp, zp);
     scene.add(cube)
     pickableObjects.push(cube);
@@ -252,9 +251,11 @@ function drawEdge(points: Vector3[], thickness: number) {
 
 }
 
-function drawVEdge(points: Vector3[], thickness: number) {
-    const p1 = points[0];
-    const p2 = points[1];
+function drawVEdge(edge: any, thickness: number) {
+
+
+    const p1 = edge.vertex[0];
+    const p2 = edge.vertex[1];
 
     let x = Math.abs(p1.x - p2.x);
     let y = Math.abs(p1.y - p2.y);
@@ -272,6 +273,11 @@ function drawVEdge(points: Vector3[], thickness: number) {
     cube.position.setX(p1.x);
     cube.position.setY(Math.min(p1.y, p2.y) + y / 2);
     cube.position.setZ(p1.z);
+    cube.userData = {
+        type: edge.type,
+        uuid: edge.uuid
+    };
+
 
     scene.add(cube)
     pickableObjects.push(cube);
@@ -300,7 +306,6 @@ function drawFace(points: Vector3[]) {
     material.side = THREE.DoubleSide
     const trimesh = new THREE.Mesh(tri, material);
 
-    console.log(trimesh)
     trimesh.rotateX(Math.PI / 2)
     trimesh.position.setY(p1.y);
     scene.add(trimesh)
@@ -317,9 +322,14 @@ function parseEdges(data: any) {
     let edges = jsonpath.query(data, x);
 
     let vEdges = edges.map(e => {
+        const uuid = e.uuid;
         let vStart = new THREE.Vector3(e.start.x, e.start.z, e.start.y);
         let vEnd = new THREE.Vector3(e.end.x, e.end.z, e.end.y);
-        return [vStart, vEnd];
+        return {
+            type: "column",
+            uuid: uuid,
+            vertex: [vStart, vEnd]
+        }
     });
 
     return vEdges;
@@ -403,7 +413,10 @@ function getOrderedVertexFromEdge(edges: any[]) {
 }
 
 
-function isEdgeVertical(points: Vector3[]) {
+function isEdgeVertical(edge: any) {
+
+    const points = edge.vertex
+
     const p1 = points[0];
     const p2 = points[1];
 
@@ -431,12 +444,13 @@ function isUnique(edge: Vector3[], edges: Vector3[][]) {
     return !found;
 }
 
-function getUnique(points: Vector3[][]) {
+function getUnique(points: any[]) {
 
-    let output: Vector3[][] = [];
+
+    let output: any[] = [];
 
     points.forEach(p => {
-        if (isUnique(p, output)) {
+        if (isUnique(p.vertex, output.map(o => o.vertex))) {
             output.push(p);
         }
     })
@@ -455,7 +469,6 @@ verticalEdge.forEach(e => drawVEdge(e, 1));
 
 //Draw face
 const slabs = parseSlabs(skeleton)
-console.log(slabs)
 slabs.forEach(s => drawFace(s.vertex))
 
 

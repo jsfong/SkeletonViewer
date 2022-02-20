@@ -11,23 +11,32 @@
             margin: 0px;
         }
 
+        #canvas {
+            overflow: hidden;
+            margin: 0px;
+        }
+
         #debug1 {
             font-family: monospace;
             font-size: smaller;
             position: absolute;
+            text-align: left;
             left: 0px;
             top: 50px;
-            border: 1px solid red;
-            width: 180px;
-            height: 310px;
+            border: 1px solid grey;
+            width: 300px;
+            height: 100px;
             color: grey;
-            pointer-events: none;
+            pointer-events: auto;
         }
     </style>
 </head>
 
 <body>
-    <div id="debug1"></div>
+    <div id="debugDiv">
+        <textarea name="debug" placeholder="Debug Area" id="debug1"></textarea>
+    </div>
+    <div id="canvas"></div>
     <script type="module" src="bundle.js"></script>
 </body>
 
