@@ -3,24 +3,54 @@ import { Vector3 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
-// import * as skeleton from './skeleton.json';
 const skeleton = require("./skeleton.json");
+import { GUI } from 'dat.gui'
 
 
 let camera: THREE.PerspectiveCamera;
 let scene: THREE.Scene;
 let renderer: THREE.WebGL1Renderer;
+let light: THREE.Object3D<THREE.Event> | THREE.PointLight;
 let plane;
 let cube: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
 let stats: Stats;
-let raycaster: THREE.Raycaster;
 let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
-let objects: THREE.Object3D<THREE.Event>[] | (THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshNormalMaterial>)[] = [];
 
+//Material
+// const normalMaterial = new THREE.MeshNormalMaterial({
+//     opacity: 0.7,
+//     transparent: true,
+//     side: THREE.FrontSide
+// })
+let normalMaterial = new THREE.MeshLambertMaterial({
+    color: 0x939393,
+    emissive: 0x2d2d2d
+});
+const highlightedMaterial = new THREE.MeshBasicMaterial({
+    wireframe: true,
+    color: 0x00ff00
+})
+const selectedMaterial = new THREE.MeshNormalMaterial({
+    side: THREE.DoubleSide
+})
 
+//Picking Config
+let raycaster: THREE.Raycaster;
+let intersects: THREE.Intersection[]
+const pickableObjects: THREE.Mesh[] = [];
+let currentPickedObject: THREE.Object3D | null;
+let intersectObject: THREE.Object3D | null;
+const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
+const debugDiv = document.getElementById('debug1') as HTMLDivElement
 
+//GUI
+const gui = new GUI()
+let lightConfig = {
+    followCamera: false
+};
 
+//ThreeJs Drawing 
 function init() {
     //Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -37,15 +67,20 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    //Light
+    light = new THREE.PointLight(0xffffff, 2)
+    light.position.set(50, 50, 30)
+    scene.add(light)
+
     //Stat
     stats = Stats()
     document.body.appendChild(stats.dom)
 
-    // //Raycaster
-    // raycaster = new THREE.Raycaster();
+    //Raycaster
+    raycaster = new THREE.Raycaster();
 
     //Grid
-    const gridHelper = new THREE.GridHelper(100, 100);
+    const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x888888);
     scene.add(gridHelper);
 
     //Plane
@@ -54,7 +89,6 @@ function init() {
     plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
     scene.add(plane);
-    objects.push(plane);
 
     //Debug view
     debugView = document.getElementById('debug1') as HTMLDivElement
@@ -66,16 +100,116 @@ function init() {
 
     //Event listener
     document.addEventListener('resize', onWindowResize);
-    // renderer.domElement.addEventListener('mousemove', onPointerMove, false);
-    // renderer.domElement.addEventListener('pointerdown', onPointerDown, false);
+    renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
+    renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
 }
 
+function initGUI() {
+    const meshLambertMaterialFolder = gui.addFolder('THREE.MeshLambertMaterial')
+    const data = {
+        color: normalMaterial.color.getHex(),
+        emissive: normalMaterial.emissive.getHex(),
+    }
+    const options = {
+        side: {
+            FrontSide: THREE.FrontSide,
+            BackSide: THREE.BackSide,
+            DoubleSide: THREE.DoubleSide,
+        },
+        combine: {
+            MultiplyOperation: THREE.MultiplyOperation,
+            MixOperation: THREE.MixOperation,
+            AddOperation: THREE.AddOperation,
+        },
+    }
+    meshLambertMaterialFolder.addColor(data, 'color').onChange(() => {
+        normalMaterial.color.setHex(Number(data.color.toString().replace('#', '0x')))
+    })
+    meshLambertMaterialFolder.addColor(data, 'emissive').onChange(() => {
+        normalMaterial.emissive.setHex(
+            Number(data.emissive.toString().replace('#', '0x'))
+        )
+    })
+    meshLambertMaterialFolder.open()
+
+    const lightFolder = gui.addFolder('Light')
+    lightFolder.add(lightConfig, 'followCamera', false).onChange(() => {
+        light.position.copy(camera.position)
+    })
+
+}
+
+function updateMaterial() {
+    normalMaterial.side = Number(normalMaterial.side)
+    normalMaterial.combine = Number(normalMaterial.combine)
+    normalMaterial.needsUpdate = true
+}
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
     render()
+}
+
+function onDocumentMouseMove(event: MouseEvent) {
+
+    //Raycaster
+    raycaster.setFromCamera(
+        {
+            x: (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
+            y: -(event.clientY / renderer.domElement.clientHeight) * 2 + 1
+        },
+        camera
+    );
+
+    intersects = raycaster.intersectObjects(pickableObjects, false);
+    if (intersects.length > 0) {
+        intersectObject = intersects[0].object;
+    } else {
+        intersectObject = null;
+    }
+
+    pickableObjects.forEach((o: THREE.Mesh, i) => {
+        if (intersectObject && intersectObject.uuid === o.uuid) {
+            pickableObjects[i].material = highlightedMaterial;
+
+        } else {
+            if (currentPickedObject && pickableObjects[i].uuid === currentPickedObject.uuid) {
+                pickableObjects[i].material = selectedMaterial
+            } else {
+                pickableObjects[i].material = originalMaterials[o.uuid]
+            }
+        }
+    })
+
+    //Light
+    if (lightConfig.followCamera) {
+        light.position.copy(camera.position);
+    }
+}
+
+function onDocumentMouseDown(event: MouseEvent) {
+    raycaster.setFromCamera(
+        {
+            x: (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
+            y: -(event.clientY / renderer.domElement.clientHeight) * 2 + 1
+        },
+        camera
+    );
+
+    intersects = raycaster.intersectObjects(pickableObjects, false);
+    if (intersects.length > 0) {
+        currentPickedObject = intersects[0].object;
+        debugDiv.innerText = `Id: ${currentPickedObject.uuid}`
+    }
+    pickableObjects.forEach((o: THREE.Mesh, i) => {
+        if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
+            pickableObjects[i].material = selectedMaterial;
+        } else {
+            pickableObjects[i].material = originalMaterials[o.uuid]
+        }
+    })
 }
 
 function animate() {
@@ -88,6 +222,94 @@ function animate() {
 function render() {
     renderer.render(scene, camera)
 }
+
+function drawEdge(points: Vector3[], thickness: number) {
+
+    const p1 = points[0];
+    const p2 = points[1];
+
+    let x = Math.abs(p1.x - p2.x);
+    let y = Math.abs(p1.y - p2.y);
+    let z = Math.abs(p1.z - p2.z);
+
+    x = x > 0 ? x : thickness;
+    y = y > 0 ? y : thickness;
+    z = z > 0 ? z : thickness;
+
+    const geometry = new THREE.BoxGeometry(x, y, z);
+    const material = normalMaterial;
+    const cube = new THREE.Mesh(geometry, material);
+
+    const xp = (p1.x - p2.x) / 2;
+    const yp = (p1.y - p2.y) / 2;
+    const zp = (p1.z - p2.z) / 2;
+
+    console.log([xp, yp, zp])
+    cube.position.set(xp, yp, zp);
+    scene.add(cube)
+    pickableObjects.push(cube);
+    originalMaterials[cube.uuid] = cube.material;
+
+}
+
+function drawVEdge(points: Vector3[], thickness: number) {
+    const p1 = points[0];
+    const p2 = points[1];
+
+    let x = Math.abs(p1.x - p2.x);
+    let y = Math.abs(p1.y - p2.y);
+    let z = Math.abs(p1.z - p2.z);
+
+    x = x > 0 ? x : thickness;
+    y = y > 0 ? y : thickness;
+    z = z > 0 ? z : thickness;
+
+    const geometry = new THREE.BoxBufferGeometry(x, y, z)
+    const material = normalMaterial
+    const cube = new THREE.Mesh(geometry, material)
+
+    //Move into place
+    cube.position.setX(p1.x);
+    cube.position.setY(Math.min(p1.y, p2.y) + y / 2);
+    cube.position.setZ(p1.z);
+
+    scene.add(cube)
+    pickableObjects.push(cube);
+    originalMaterials[cube.uuid] = cube.material;
+
+}
+
+function drawFace(points: Vector3[]) {
+
+    const p1 = points[0];
+    const p2 = points[1];
+    const p3 = points[2];
+    const p4 = points[3];
+
+    const triangleShape = new THREE.Shape();
+    triangleShape.moveTo(p1.x, p1.z);
+    triangleShape.lineTo(p2.x, p2.z);
+    triangleShape.lineTo(p3.x, p3.z);
+    triangleShape.lineTo(p4.x, p4.z);
+    triangleShape.lineTo(p1.x, p1.z); // close path
+
+    // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
+    // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
+    const tri = new THREE.ShapeBufferGeometry(triangleShape);
+    let material = normalMaterial
+    material.side = THREE.DoubleSide
+    const trimesh = new THREE.Mesh(tri, material);
+
+    console.log(trimesh)
+    trimesh.rotateX(Math.PI / 2)
+    trimesh.position.setY(p1.y);
+    scene.add(trimesh)
+    pickableObjects.push(trimesh);
+    originalMaterials[trimesh.uuid] = trimesh.material;
+
+}
+
+//End of - ThreeJs Drawing 
 
 //Json parsing
 function parseEdges(data: any) {
@@ -221,90 +443,11 @@ function getUnique(points: Vector3[][]) {
 
     return output;
 }
-
-function drawEdge(points: Vector3[], thickness: number) {
-
-    const p1 = points[0];
-    const p2 = points[1];
-
-    let x = Math.abs(p1.x - p2.x);
-    let y = Math.abs(p1.y - p2.y);
-    let z = Math.abs(p1.z - p2.z);
-
-    x = x > 0 ? x : thickness;
-    y = y > 0 ? y : thickness;
-    z = z > 0 ? z : thickness;
-
-    const geometry = new THREE.BoxGeometry(x, y, z)
-    const material = new THREE.MeshNormalMaterial()
-    const cube = new THREE.Mesh(geometry, material)
-
-    const xp = (p1.x - p2.x) / 2;
-    const yp = (p1.y - p2.y) / 2;
-    const zp = (p1.z - p2.z) / 2;
-
-    console.log([xp, yp, zp])
-    cube.position.set(xp, yp, zp);
-    scene.add(cube)
-
-}
-
-function drawVEdge(points: Vector3[], thickness: number) {
-    const p1 = points[0];
-    const p2 = points[1];
-
-    let x = Math.abs(p1.x - p2.x);
-    let y = Math.abs(p1.y - p2.y);
-    let z = Math.abs(p1.z - p2.z);
-
-    x = x > 0 ? x : thickness;
-    y = y > 0 ? y : thickness;
-    z = z > 0 ? z : thickness;
-
-    const geometry = new THREE.BoxBufferGeometry(x, y, z)
-    const material = new THREE.MeshNormalMaterial()
-    const cube = new THREE.Mesh(geometry, material)
-
-    //Move into place
-    cube.position.setX(p1.x);
-    cube.position.setY(Math.min(p1.y, p2.y) + y / 2);
-    cube.position.setZ(p1.z);
-
-    scene.add(cube)
-    objects.push(cube)
-
-}
-
-function drawFace(points: Vector3[]) {
-
-    const p1 = points[0];
-    const p2 = points[1];
-    const p3 = points[2];
-    const p4 = points[3];
-
-    const triangleShape = new THREE.Shape();
-    triangleShape.moveTo(p1.x, p1.z);
-    triangleShape.lineTo(p2.x, p2.z);
-    triangleShape.lineTo(p3.x, p3.z);
-    triangleShape.lineTo(p4.x, p4.z);
-    triangleShape.lineTo(p1.x, p1.z); // close path
-
-    // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
-    // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
-    const tri = new THREE.ShapeBufferGeometry(triangleShape);
-    const trimesh = new THREE.Mesh(tri, new THREE.MeshNormalMaterial({ wireframe: false, side: THREE.DoubleSide }));
-
-    console.log(trimesh)
-    trimesh.rotateX(Math.PI / 2)
-    trimesh.position.setY(p1.y);
-    scene.add(trimesh)
-
-}
-
+//End of - Json parsing
 
 
 init()
-
+initGUI()
 //Draw edge
 let vEdge = parseEdges(skeleton);
 let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
@@ -314,18 +457,6 @@ verticalEdge.forEach(e => drawVEdge(e, 1));
 const slabs = parseSlabs(skeleton)
 console.log(slabs)
 slabs.forEach(s => drawFace(s.vertex))
-
-// const x1 = new THREE.Vector3(10, 0, 0);
-// const x2 = new THREE.Vector3(-10, 0, 0);
-// drawEdge([x1, x2], 0.25);
-
-// //Draw face - 4 points
-// const f1 = new THREE.Vector3(0, 0, 0);
-// const f2 = new THREE.Vector3(1, 0, 0);
-// const f3 = new THREE.Vector3(1, 0, 1);
-// const f4 = new THREE.Vector3(0, 0, 1);
-// drawFace([f1, f2, f3, f4])
-
 
 
 animate()
