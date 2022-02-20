@@ -285,8 +285,9 @@ function drawVEdge(edge: any, thickness: number) {
 
 }
 
-function drawFace(points: Vector3[]) {
+function drawFace(face: any) {
 
+    const points = face.vertex;
     const p1 = points[0];
     const p2 = points[1];
     const p3 = points[2];
@@ -305,6 +306,7 @@ function drawFace(points: Vector3[]) {
     let material = normalMaterial
     material.side = THREE.DoubleSide
     const trimesh = new THREE.Mesh(tri, material);
+    trimesh.userData = face.userData
 
     trimesh.rotateX(Math.PI / 2)
     trimesh.position.setY(p1.y);
@@ -343,9 +345,14 @@ function parseSlabs(data: any) {
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
     const slabs = vFaces.map(f => {
         const [floorNo] = getFaceFloorNum(f);
+        const uuid = f.uuid;
         return {
-            "vertex": getSlabVertex(f),
-            "floorNo": floorNo
+            userData: {
+                type: "slab",
+                uuid: uuid,
+                floorNo: floorNo
+            },
+            vertex: getSlabVertex(f)
         }
     });
 
@@ -469,7 +476,7 @@ verticalEdge.forEach(e => drawVEdge(e, 1));
 
 //Draw face
 const slabs = parseSlabs(skeleton)
-slabs.forEach(s => drawFace(s.vertex))
+slabs.forEach(s => drawFace(s))
 
 
 animate()
