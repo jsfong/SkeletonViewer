@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
+const outputData = require("./output.json");
 import { GUI } from 'dat.gui'
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
@@ -201,7 +202,9 @@ function onDocumentMouseDown(event: MouseEvent) {
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object;
-        debugDiv.value = JSON.stringify(currentPickedObject.userData, null, 2);
+        const id = currentPickedObject.userData.uuid;        
+        const data = getOutputData(id);
+        debugDiv.value = data;
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -320,7 +323,7 @@ function drawFace(face: any) {
 
 //Json parsing
 function parseEdges(data: any) {
-    const x = "$.cells.*.faces.*.edges.*";
+    const x = "$.cellComplex.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
 
     let vEdges = edges.map(e => {
@@ -339,7 +342,7 @@ function parseEdges(data: any) {
 
 function parseSlabs(data: any) {
 
-    const x = "$.cells.*.faces.*";
+    const x = "$.cellComplex.*.faces.*";
     let faces = jsonpath.query(data, x);
 
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
@@ -463,6 +466,13 @@ function getUnique(points: any[]) {
     })
 
     return output;
+}
+
+function getOutputData(id: any) {
+    const x = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
+    let data = jsonpath.query(outputData, x);
+
+    return JSON.stringify(data, null, 2)
 }
 //End of - Json parsing
 
