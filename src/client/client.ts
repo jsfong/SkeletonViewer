@@ -56,7 +56,7 @@ let lightConfig = {
 function init() {
     //Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300)
-    camera.position.set(20, 20, 20);
+    camera.position.set(50, 50, 50);
     camera.lookAt(0, 0, 0);
 
     //Scene
@@ -230,7 +230,7 @@ function onDocumentMouseDown(event: MouseEvent) {
         currentPickedObject = intersects[0].object;
         const id = currentPickedObject.userData.uuid;
         const data = getOutputData(id);
-        debugDiv.value = id + data;
+        debugDiv.value = `ID: ${id} \n${data}`;
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -321,17 +321,13 @@ function drawFace(face: any) {
 
     console.log("faceId: " + face.userData.uuid)
     const points = face.vertex;
-    const p1 = points[0];
-    const p2 = points[1];
-    const p3 = points[2];
-    const p4 = points[3];
+
+    const [firstP, ...restOfP] = points
 
     const triangleShape = new THREE.Shape();
-    triangleShape.moveTo(p1.x, p1.z);
-    triangleShape.lineTo(p2.x, p2.z);
-    triangleShape.lineTo(p3.x, p3.z);
-    triangleShape.lineTo(p4.x, p4.z);
-    triangleShape.lineTo(p1.x, p1.z); // close path
+    triangleShape.moveTo(firstP.x, firstP.z);
+    restOfP.forEach((p: { x: number; z: number; }) => triangleShape.lineTo(p.x, p.z))
+    triangleShape.lineTo(firstP.x, firstP.z); // close path
 
     // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
     // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
@@ -342,7 +338,7 @@ function drawFace(face: any) {
     trimesh.userData = face.userData
 
     trimesh.rotateX(Math.PI / 2)
-    trimesh.position.setY(p1.y);
+    trimesh.position.setY(firstP.y);
     scene.add(trimesh)
     pickableObjects.push(trimesh);
     originalMaterials[trimesh.uuid] = trimesh.material;
@@ -428,7 +424,7 @@ function getUniqueFace(faces: any[]) {
 }
 
 function isNotGroundFloor(face: any) {
-    return face.userData.floorNo !== 1
+    return face.userData.floorNo !== 0
 }
 
 function getFaceFloorNum(face: any) {
