@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
+const cube8Cells = require("./cube8Cells.json");
 const outputData = require("./output.json");
 import { GUI } from 'dat.gui'
 
@@ -17,13 +18,9 @@ let cube: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.PlaneGeometry, THREE.Me
 let stats: Stats;
 let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
+let jSkeleton = cube8Cells;
 
 //Material
-// const normalMaterial = new THREE.MeshNormalMaterial({
-//     opacity: 0.7,
-//     transparent: true,
-//     side: THREE.FrontSide
-// })
 let normalMaterial = new THREE.MeshLambertMaterial({
     color: 0x939393,
     emissive: 0x2d2d2d
@@ -44,6 +41,9 @@ let currentPickedObject: THREE.Object3D | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
+const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonElement;
+const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
+
 
 //GUI
 const gui = new GUI()
@@ -54,7 +54,7 @@ let lightConfig = {
 //ThreeJs Drawing 
 function init() {
     //Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300)
     camera.position.set(20, 20, 20);
     camera.lookAt(0, 0, 0);
 
@@ -81,11 +81,11 @@ function init() {
     raycaster = new THREE.Raycaster();
 
     //Grid
-    const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x888888);
+    const gridHelper = new THREE.GridHelper(500, 500, 0x444444, 0x888888);
     scene.add(gridHelper);
 
     //Plane
-    const geometry = new THREE.PlaneBufferGeometry(100, 100);
+    const geometry = new THREE.PlaneBufferGeometry(500, 500);
     geometry.rotateX(- Math.PI / 2);
     plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
@@ -101,8 +101,13 @@ function init() {
 
     //Event listener
     document.addEventListener('resize', onWindowResize);
+
+    renderer.domElement.addEventListener('wheel', onDocumentMouseScroll, false);
     renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
     renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
+
+    bReadSkeleton.addEventListener("click", readSkeleton, false);
+    tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
 }
 
 function initGUI() {
@@ -140,6 +145,20 @@ function initGUI() {
 
 }
 
+function readSkeleton(this: HTMLElement, ev: Event) {
+    console.log("Read Skeleton")
+    ev.preventDefault();
+
+    if(tSkeletonSrc.value){
+        console.log("Detected skeleton input")
+        jSkeleton = JSON.parse(tSkeletonSrc.value)
+    }
+    
+    console.log(jSkeleton)
+    console.log("Redrawing Skeleton ..")
+    parseAndDrawSkeleton();
+}
+
 function updateMaterial() {
     normalMaterial.side = Number(normalMaterial.side)
     normalMaterial.combine = Number(normalMaterial.combine)
@@ -150,6 +169,10 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
+    // render()
+}
+
+function onDocumentMouseScroll() {
     render()
 }
 
@@ -188,6 +211,8 @@ function onDocumentMouseMove(event: MouseEvent) {
     if (lightConfig.followCamera) {
         light.position.copy(camera.position);
     }
+
+    render()
 }
 
 function onDocumentMouseDown(event: MouseEvent) {
@@ -202,9 +227,9 @@ function onDocumentMouseDown(event: MouseEvent) {
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object;
-        const id = currentPickedObject.userData.uuid;        
+        const id = currentPickedObject.userData.uuid;
         const data = getOutputData(id);
-        debugDiv.value = data;
+        debugDiv.value = id + data;
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -213,12 +238,15 @@ function onDocumentMouseDown(event: MouseEvent) {
             pickableObjects[i].material = originalMaterials[o.uuid]
         }
     })
+
+    render()
 }
 
 function animate() {
     requestAnimationFrame(animate)
 
-    render()
+    //To save process only render when needed
+    // render()
     stats.update()
 }
 
@@ -325,6 +353,7 @@ function drawFace(face: any) {
 function parseEdges(data: any) {
     const x = "$.cellComplex.cells.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
+    console.log("Num of edges " + edges.length)
 
     let vEdges = edges.map(e => {
         const uuid = e.uuid;
@@ -345,7 +374,10 @@ function parseSlabs(data: any) {
     const x = "$.cellComplex.cells.*.faces.*";
     let faces = jsonpath.query(data, x);
 
+    console.log("xxx " + faces.length)
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
+    console.log("vFaces " + vFaces.length)
+
     const slabs = vFaces.map(f => {
         const [floorNo] = getFaceFloorNum(f);
         const uuid = f.uuid;
@@ -444,14 +476,25 @@ function isUnique(edge: Vector3[], edges: Vector3[][]) {
 
     let found = edges.find(e => {
         return (
-            edge[0].equals(e[0])
-            || edge[0].equals(e[1])
-            || edge[1].equals(e[0])
-            || edge[1].equals(e[1])
+            // edge[0].equals(e[0])
+            // || edge[0].equals(e[1])
+            // || edge[1].equals(e[0])
+            // || edge[1].equals(e[1])
+
+
+            isVertexEqual(edge[0], e[0]) 
+           || isVertexEqual(edge[0], e[1]) 
+           || isVertexEqual(edge[1], e[0]) 
+           || isVertexEqual(edge[1], e[1]) 
+
         );
     });
 
     return !found;
+}
+
+function isVertexEqual (e1 : Vector3, e2: Vector3) {
+    return e1.x === e2.x && e1.y === e2.y && e1.z === e2.z;
 }
 
 function getUnique(points: any[]) {
@@ -459,9 +502,11 @@ function getUnique(points: any[]) {
 
     let output: any[] = [];
 
+    let vertexs = output.map(o => o.vertex);
+
     points.forEach(p => {
-        if (isUnique(p.vertex, output.map(o => o.vertex))) {
-            output.push(p);
+        if (isUnique(p.vertex, vertexs)) {
+            vertexs.push(p.vertex);
         }
     })
 
@@ -476,18 +521,29 @@ function getOutputData(id: any) {
 }
 //End of - Json parsing
 
+function parseAndDrawSkeleton() {
+    //Draw edge
+    let vEdge = parseEdges(jSkeleton);
+    console.log("Num of edges " + vEdge.length)
+
+    let vE = vEdge.filter(isEdgeVertical);
+    console.log("Num of verticalEdge " + vE.length)
+    console.log("unique verticalEdge: \n" + JSON.stringify(vE, null, 2))
+
+    let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
+    console.log("Num of unique verticalEdge " + verticalEdge.length)
+    console.log("unique verticalEdge: \n" + JSON.stringify(verticalEdge, null, 2))
+    verticalEdge.forEach(e => drawVEdge(e, 1));
+
+    //Draw face
+    const slabs = parseSlabs(skeleton)
+
+    // console.log("slabs: \n" + JSON.stringify(slabs, null, 2))
+    slabs.forEach(s => drawFace(s))
+}
 
 init()
 initGUI()
-//Draw edge
-let vEdge = parseEdges(skeleton);
-let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
-verticalEdge.forEach(e => drawVEdge(e, 1));
-
-//Draw face
-const slabs = parseSlabs(skeleton)
-slabs.forEach(s => drawFace(s))
-
-
+// parseAndDrawSkeleton()
 animate()
 
