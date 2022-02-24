@@ -319,6 +319,7 @@ function drawVEdge(edge: any, thickness: number) {
 
 function drawFace(face: any) {
 
+    console.log("faceId: " + face.userData.uuid)
     const points = face.vertex;
     const p1 = points[0];
     const p2 = points[1];
@@ -462,7 +463,7 @@ function getSlabVertex(face: any) {
 
 function getOrderedVertexFromEdge(edges: any[]) {
 
-    const [firstV, ...restOfVs] = edges;
+    let [firstV, ...restOfVs] = edges;
 
     const orderVertex: Vector3[] = []
     orderVertex.push(firstV.start);
@@ -471,17 +472,19 @@ function getOrderedVertexFromEdge(edges: any[]) {
     let index = firstV.end;
     while (orderVertex.length < edges.length) {
 
-        const matchedStart = restOfVs.find(v => v.start.equals(index));
+        const matchedStart = restOfVs.find(v => v && v.start.equals(index));
         if (matchedStart) {
             orderVertex.push(matchedStart.end);
             index = matchedStart.end;
+            delete restOfVs[restOfVs.indexOf(matchedStart)]
             continue;
         }
 
-        const matchedEnd = restOfVs.find(v => v.end.equals(index))
+        const matchedEnd = restOfVs.find(v => v && v.end.equals(index))
         if (matchedEnd) {
             orderVertex.push(matchedEnd.start);
             index = matchedEnd.start;
+            delete restOfVs[restOfVs.indexOf(matchedEnd)]
             continue;
         }
     }
