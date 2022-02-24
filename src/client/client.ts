@@ -323,7 +323,7 @@ function drawFace(face: any) {
 
 //Json parsing
 function parseEdges(data: any) {
-    const x = "$.cellComplex.*.faces.*.edges.*";
+    const x = "$.cellComplex.cells.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
 
     let vEdges = edges.map(e => {
@@ -342,7 +342,7 @@ function parseEdges(data: any) {
 
 function parseSlabs(data: any) {
 
-    const x = "$.cellComplex.*.faces.*";
+    const x = "$.cellComplex.cells.*.faces.*";
     let faces = jsonpath.query(data, x);
 
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
