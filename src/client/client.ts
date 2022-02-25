@@ -43,7 +43,7 @@ const selectedMaterial = new THREE.MeshNormalMaterial({
 let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
 const pickableObjects: THREE.Mesh[] = [];
-let currentPickedObject: THREE.Object3D | null;
+let currentPickedObject: THREE.Object3D | THREE.Mesh | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
@@ -255,10 +255,15 @@ function onDocumentMouseDown(event: MouseEvent) {
 
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
-        currentPickedObject = intersects[0].object;
+        currentPickedObject = intersects[0].object ;
+        const position = JSON.stringify({
+            x: currentPickedObject.position.x,
+            y: currentPickedObject.position.z,
+            z: currentPickedObject.position.y
+        });
         const id = currentPickedObject.userData.uuid;
         const data = getOutputData(id);
-        debugDiv.value = `ID: ${id} \n${data}`;
+        debugDiv.value = `ID: ${id} \nPosition: ${position} \n${data}`;
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
