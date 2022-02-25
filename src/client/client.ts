@@ -6,8 +6,10 @@ import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
 const cube8Cells = require("./cube8Cells.json");
 const outputData = require("./output.json");
+const cube8CellsOutputData = require("./cube8CellsOutput.json");
 import { GUI } from 'dat.gui'
 import { type } from 'os';
+import { text } from 'stream/consumers';
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
 let camera: THREE.PerspectiveCamera;
@@ -19,7 +21,10 @@ let cube: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.PlaneGeometry, THREE.Me
 let stats: Stats;
 let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
+
+//JSON
 let jSkeleton = cube8Cells;
+let jOutput = cube8CellsOutputData;
 
 //Material
 let normalMaterial = new THREE.MeshLambertMaterial({
@@ -44,13 +49,20 @@ const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
 const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonElement;
 const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
-
+const bReadResult = document.getElementById('bAddResult') as HTMLButtonElement;
+const tResultSrc = document.getElementById('tResultSrc') as HTMLTextAreaElement;
 
 //GUI
 const gui = new GUI()
+let floorDropDownController
 let lightConfig = {
     followCamera: false
 };
+var settings = {
+    floorLevelToDraw: 'ALL'
+};
+
+
 
 //ThreeJs Drawing 
 function init() {
@@ -108,7 +120,9 @@ function init() {
     renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
 
     bReadSkeleton.addEventListener("click", readSkeleton, false);
+    bReadResult.addEventListener("click", readResult, false);
     tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
+    tResultSrc.value = JSON.stringify(jOutput, null, 2);
 }
 
 function initGUI() {
@@ -137,12 +151,17 @@ function initGUI() {
             Number(data.emissive.toString().replace('#', '0x'))
         )
     })
-    meshLambertMaterialFolder.open()
 
     const lightFolder = gui.addFolder('Light')
     lightFolder.add(lightConfig, 'followCamera', false).onChange(() => {
         light.position.copy(camera.position)
     })
+
+
+    const levelFolder = gui.addFolder('Level')
+    floorDropDownController = levelFolder.add(settings, 'floorLevelToDraw', ['ALL']).onChange(() => {
+        parseAndDrawSkeleton()
+    });
 
 }
 
@@ -155,9 +174,18 @@ function readSkeleton(this: HTMLElement, ev: Event) {
         jSkeleton = JSON.parse(tSkeletonSrc.value)
     }
 
-    console.log(jSkeleton)
     console.log("Redrawing Skeleton ..")
     parseAndDrawSkeleton();
+}
+
+function readResult (this: HTMLElement, ev: Event) {
+    console.log("Read Result")
+    ev.preventDefault();
+
+    if (tResultSrc.value) {
+        console.log("Detected Result input")
+        jOutput = JSON.parse(tResultSrc.value)
+    }
 }
 
 function updateMaterial() {
@@ -536,7 +564,7 @@ function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
 
 function getOutputData(id: any) {
     const x = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
-    let data = jsonpath.query(outputData, x);
+    let data = jsonpath.query(jOutput, x);
 
     return JSON.stringify(data, null, 2)
 }

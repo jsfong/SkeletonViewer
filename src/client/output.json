@@ -1,18 +1,152 @@
 {
-    "modelId": "2538c0b9-2774-467f-9de1-672e188e7bf4",
+    "modelId": "aba888fd-1725-4693-b6a7-5b564f9b50fc",
     "elements": [
         {
-            "id": "3c7dc17c-7413-4bc8-97cf-edff3dd8e18a",
-            "externalRefId": "52de76c2-a03c-4795-acff-d1ae600846b7",
-            "type": "uniformlyDistributedLoad",
+            "id": "2f18dee8-1406-443e-86e0-3a0bdfcbb534",
+            "externalRefId": "f87ceb73-e502-4f0d-9207-7c2e1dbf0bee",
+            "type": "beam",
             "attributes": {
-                "sdl": 10.0,
-                "ll": 10.0
+                "edgeId": "7b352da2-28f0-41a3-b6ff-73a059f78910",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
             }
         },
         {
-            "id": "e9f05612-e017-465b-a59f-c86a817f35c1",
-            "externalRefId": "79ab4d35-3a8d-44cd-a930-0ff2e2663d7b",
+            "id": "063428b9-f84d-4d5c-88ea-9dc69e3dff0e",
+            "externalRefId": "fad67dfe-952e-486e-b2c0-4c2d56b2ac65",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "589ab540-26a7-4b0e-8574-23e3c16b1f31",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "381ba657-3423-4b79-89fa-ead7b2ecbef0",
+            "externalRefId": "a5027d6f-384d-41f2-a5d5-cf4ceecc7de0",
+            "type": "column",
+            "attributes": {
+                "edgeId": "69bc04eb-ea68-431f-98e0-b3a08d426be1",
+                "geometry": {
+                    "shape": "Rectangle",
+                    "floorToFloorHeight": 10000.0,
+                    "effectiveLength": 10000.0,
+                    "tributaryArea": 25.0,
+                    "minimumWidthForSpecificFireRating": 350.0,
+                    "width": 350.0,
+                    "depth": 950.0
+                },
+                "structuralAction": {
+                    "columnSelfWeight": 0.0,
+                    "columnExternalSuperImposedDeadLoadSDL": 0.0,
+                    "columnExternalDeadLoadDL": 0.0,
+                    "columnExternalLiveLoadLL": 0.0
+                },
+                "structuralReaction": {
+                    "columnSelfWeight": 112.21874999999999,
+                    "columnExternalSDL": 10.0,
+                    "columnExternalLL": 10.0,
+                    "columnDesignCompression": 825.19125,
+                    "columnDesignBending": 109.45022403696747,
+                    "columnSuperImposedDeadLoadSDL": 337.9725,
+                    "columnAppliedDeadLoadDL": 0.0,
+                    "columnAppliedLiveLoadLL": 375.0
+                },
+                "materialProperties": {
+                    "type": "REINFORCED CONCRETE (PRECAST)",
+                    "concreteStrengthPrecastSkin": "C40/50",
+                    "concreteStrengthTopping": "C40/50",
+                    "concreteElasticModulus": 35.220462289,
+                    "concreteMeanTensileStrength": 3.508821286,
+                    "fivePercentFractileTensileStrength": 2.4561748999999997,
+                    "concreteDensity": 25.0,
+                    "reinforceSteelYieldStrength": 500.0,
+                    "reinforceSteelElasticModulus": 200.0
+                },
+                "designData": {
+                    "workingLife": "50",
+                    "exposureClass": "XC3",
+                    "usageType": "Storage",
+                    "nominalCover": 30.0,
+                    "fireRating": "2-hour"
+                },
+                "appliedLoad": {
+                    "compressiveForceWithoutSelfWeight": 712.9725,
+                    "compressiveForceWithSelfWeight": 825.19125,
+                    "minimumEccentricity": 31.666666666666668,
+                    "firstOrderBendingMoment": 26.13105625,
+                    "shearForce": 123.7786875
+                },
+                "codeFactor": {
+                    "gammaC": 1.5,
+                    "gammaS": 1.15,
+                    "alphaC": 0.85,
+                    "alphaT": 1.0,
+                    "ygk": 1.35,
+                    "yqk": 1.35,
+                    "sai2": 0.8,
+                    "sai0": 1.0,
+                    "lambda": 0.8,
+                    "eta": 1.0
+                },
+                "analyticalGeometry": {
+                    "effectiveDepth1": 902.0,
+                    "effectiveDepth2": 48.0
+                },
+                "slenderness": {
+                    "width": 350.0,
+                    "length": 950.0,
+                    "area": 0.33249999999999996,
+                    "secondMomentArea": 2.5006770833333332E10,
+                    "slendernessRatio": 36.464227527765836,
+                    "rebarPercentage": 0.0119,
+                    "slendernessLimit": 36.472945038614185,
+                    "utilisationRatio": 0.9997609869222482
+                },
+                "rebarDesign": {
+                    "noOfBarAlongWidthFace": 3,
+                    "noOfBarAlongLengthFace": 7,
+                    "barSize": 20.0,
+                    "totalNoOfLongitudinalBar": 16,
+                    "providedLongitudinalBars": "16H20"
+                },
+                "nmCurve": {
+                    "pureCompressiveCapacity": 9182.023459106762,
+                    "pureBendingMoment": 873.1396382636278,
+                    "maxBendingMoment": 1401.0501500988212,
+                    "correspondingCompressiveAction": 3304.305752628514,
+                    "compressiveAction": 825.19125,
+                    "bendingMoment": 26.13105625,
+                    "correspondingBendingMoment": 1094.5022403696746,
+                    "isPassNM": true
+                },
+                "transverseReinforcement": {
+                    "alongWidthFace": {
+                        "shearResistance": 0.6508291117806323,
+                        "shearStress": 0.3920769322141273,
+                        "shearForce": 123.7786875,
+                        "maxShearForce": 1622.95056,
+                        "isShearDesignPass": true,
+                        "amountOfShearLinkRequired": 354.1750979388585,
+                        "provideShearLink": "2H8-175"
+                    },
+                    "alongLengthFace": {
+                        "shearResistance": 0.6508291117806323,
+                        "shearStress": 0.4314349512025096,
+                        "shearForce": 123.7786875,
+                        "maxShearForce": 1474.89552,
+                        "isShearDesignPass": true,
+                        "amountOfShearLinkRequired": 1047.4281870860925,
+                        "provideShearLink": "4H8-175"
+                    }
+                }
+            }
+        },
+        {
+            "id": "e8ec33fa-61d9-4d63-8919-d49b86aaee2d",
+            "externalRefId": "f2e0d207-ff44-402c-ae4e-1c1bdfd81d4e",
             "type": "column",
             "attributes": {
                 "edgeId": "d82a8dd6-1879-4b19-9b43-9fd6e447a60f",
@@ -132,7 +266,29 @@
             }
         },
         {
-            "id": "dab0a052-30ce-4d41-b587-1bd532182660",
+            "id": "8b5ba955-f3e7-4624-9927-ab89fe5dee65",
+            "externalRefId": "654e17ac-4e2d-42a8-9205-6543542e5270",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "d24219ef-b1eb-4ac5-8998-05cd34ef6aa9",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "6adc9029-e432-4112-9906-b1a751d6198d",
+            "externalRefId": "a69e08b1-32c4-49a9-a3ef-9081dbd40b89",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "5ddc2c9b-872e-48d5-b236-a7c23fb185b8",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "b96517f2-1e11-4f51-9f84-3ff1e5bdf655",
             "externalRefId": "dlfpl-config-001",
             "type": "mockinput",
             "attributes": {
@@ -732,220 +888,11 @@
             }
         },
         {
-            "id": "063428b9-f84d-4d5c-88ea-9dc69e3dff0e",
-            "externalRefId": "fad67dfe-952e-486e-b2c0-4c2d56b2ac65",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "589ab540-26a7-4b0e-8574-23e3c16b1f31",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "8b5ba955-f3e7-4624-9927-ab89fe5dee65",
-            "externalRefId": "654e17ac-4e2d-42a8-9205-6543542e5270",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "d24219ef-b1eb-4ac5-8998-05cd34ef6aa9",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
             "id": "90569f82-4300-4b67-96a4-6ba097648b71",
             "externalRefId": "71f4f3f7-e89a-44b6-bc77-7b16b6d2d719",
             "type": "beam",
             "attributes": {
                 "edgeId": "be72ac5c-ae8c-4220-aa33-56c0e6a6c061",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "6adc9029-e432-4112-9906-b1a751d6198d",
-            "externalRefId": "a69e08b1-32c4-49a9-a3ef-9081dbd40b89",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "5ddc2c9b-872e-48d5-b236-a7c23fb185b8",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "3474490b-1401-4676-8ccf-0772e98776f7",
-            "externalRefId": "304b18ff-2885-4365-b8a9-f17fcc63d1e6",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "8b8e4820-0c9d-49b1-9778-c40ffa009215",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "03176aaa-204e-4a16-88ce-5871829f8eb5",
-            "externalRefId": "01d84f9b-4b83-40aa-94a5-949d0760ef58",
-            "type": "column",
-            "attributes": {
-                "edgeId": "ec7e2cae-c63a-463e-9568-490676d29032",
-                "geometry": {
-                    "shape": "Rectangle",
-                    "floorToFloorHeight": 10000.0,
-                    "effectiveLength": 10000.0,
-                    "tributaryArea": 25.0,
-                    "minimumWidthForSpecificFireRating": 350.0,
-                    "width": 350.0,
-                    "depth": 950.0
-                },
-                "structuralAction": {
-                    "columnSelfWeight": 0.0,
-                    "columnExternalSuperImposedDeadLoadSDL": 0.0,
-                    "columnExternalDeadLoadDL": 0.0,
-                    "columnExternalLiveLoadLL": 0.0
-                },
-                "structuralReaction": {
-                    "columnSelfWeight": 112.21874999999999,
-                    "columnExternalSDL": 10.0,
-                    "columnExternalLL": 10.0,
-                    "columnDesignCompression": 825.19125,
-                    "columnDesignBending": 109.45022403696747,
-                    "columnSuperImposedDeadLoadSDL": 337.9725,
-                    "columnAppliedDeadLoadDL": 0.0,
-                    "columnAppliedLiveLoadLL": 375.0
-                },
-                "materialProperties": {
-                    "type": "REINFORCED CONCRETE (PRECAST)",
-                    "concreteStrengthPrecastSkin": "C40/50",
-                    "concreteStrengthTopping": "C40/50",
-                    "concreteElasticModulus": 35.220462289,
-                    "concreteMeanTensileStrength": 3.508821286,
-                    "fivePercentFractileTensileStrength": 2.4561748999999997,
-                    "concreteDensity": 25.0,
-                    "reinforceSteelYieldStrength": 500.0,
-                    "reinforceSteelElasticModulus": 200.0
-                },
-                "designData": {
-                    "workingLife": "50",
-                    "exposureClass": "XC3",
-                    "usageType": "Storage",
-                    "nominalCover": 30.0,
-                    "fireRating": "2-hour"
-                },
-                "appliedLoad": {
-                    "compressiveForceWithoutSelfWeight": 712.9725,
-                    "compressiveForceWithSelfWeight": 825.19125,
-                    "minimumEccentricity": 31.666666666666668,
-                    "firstOrderBendingMoment": 26.13105625,
-                    "shearForce": 123.7786875
-                },
-                "codeFactor": {
-                    "gammaC": 1.5,
-                    "gammaS": 1.15,
-                    "alphaC": 0.85,
-                    "alphaT": 1.0,
-                    "ygk": 1.35,
-                    "yqk": 1.35,
-                    "sai2": 0.8,
-                    "sai0": 1.0,
-                    "lambda": 0.8,
-                    "eta": 1.0
-                },
-                "analyticalGeometry": {
-                    "effectiveDepth1": 902.0,
-                    "effectiveDepth2": 48.0
-                },
-                "slenderness": {
-                    "width": 350.0,
-                    "length": 950.0,
-                    "area": 0.33249999999999996,
-                    "secondMomentArea": 2.5006770833333332E10,
-                    "slendernessRatio": 36.464227527765836,
-                    "rebarPercentage": 0.0119,
-                    "slendernessLimit": 36.472945038614185,
-                    "utilisationRatio": 0.9997609869222482
-                },
-                "rebarDesign": {
-                    "noOfBarAlongWidthFace": 3,
-                    "noOfBarAlongLengthFace": 7,
-                    "barSize": 20.0,
-                    "totalNoOfLongitudinalBar": 16,
-                    "providedLongitudinalBars": "16H20"
-                },
-                "nmCurve": {
-                    "pureCompressiveCapacity": 9182.023459106762,
-                    "pureBendingMoment": 873.1396382636278,
-                    "maxBendingMoment": 1401.0501500988212,
-                    "correspondingCompressiveAction": 3304.305752628514,
-                    "compressiveAction": 825.19125,
-                    "bendingMoment": 26.13105625,
-                    "correspondingBendingMoment": 1094.5022403696746,
-                    "isPassNM": true
-                },
-                "transverseReinforcement": {
-                    "alongWidthFace": {
-                        "shearResistance": 0.6508291117806323,
-                        "shearStress": 0.3920769322141273,
-                        "shearForce": 123.7786875,
-                        "maxShearForce": 1622.95056,
-                        "isShearDesignPass": true,
-                        "amountOfShearLinkRequired": 354.1750979388585,
-                        "provideShearLink": "2H8-175"
-                    },
-                    "alongLengthFace": {
-                        "shearResistance": 0.6508291117806323,
-                        "shearStress": 0.4314349512025096,
-                        "shearForce": 123.7786875,
-                        "maxShearForce": 1474.89552,
-                        "isShearDesignPass": true,
-                        "amountOfShearLinkRequired": 1047.4281870860925,
-                        "provideShearLink": "4H8-175"
-                    }
-                }
-            }
-        },
-        {
-            "id": "7f13ae88-004d-45be-a447-699d1ab71268",
-            "externalRefId": "37f146a0-64a0-4277-a2f7-da8fe84013f0",
-            "type": "slab",
-            "attributes": {
-                "faceId": "e104bfe5-dbf7-448f-b179-b7b2bfe1c86a",
-                "structuralReaction": {
-                    "slabSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "2f18dee8-1406-443e-86e0-3a0bdfcbb534",
-            "externalRefId": "f87ceb73-e502-4f0d-9207-7c2e1dbf0bee",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "7b352da2-28f0-41a3-b6ff-73a059f78910",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "aba2fbdd-5118-41fe-9b11-1975a7c7889b",
-            "externalRefId": "b3f7154a-c903-4f45-8dae-b59d7d4ec1c2",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "62b179de-9742-41c4-9c2e-aaa3af87eb87",
-                "structuralReaction": {
-                    "beamSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "d34148fb-166c-45f9-abb9-7554dc644f97",
-            "externalRefId": "320ac029-26fa-4c7c-b264-0e786785e4ea",
-            "type": "beam",
-            "attributes": {
-                "edgeId": "ba3fe38b-493b-4702-b1cf-a1ad1f9df608",
                 "structuralReaction": {
                     "beamSelfWeight": 10.0
                 }
@@ -1406,11 +1353,78 @@
             }
         },
         {
-            "id": "6cf12c90-e876-4f9f-b29d-dc827cee6ec3",
-            "externalRefId": "74739561-e276-48a2-85d3-5aa276fbd14a",
+            "id": "d34148fb-166c-45f9-abb9-7554dc644f97",
+            "externalRefId": "320ac029-26fa-4c7c-b264-0e786785e4ea",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "ba3fe38b-493b-4702-b1cf-a1ad1f9df608",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "3c7dc17c-7413-4bc8-97cf-edff3dd8e18a",
+            "externalRefId": "52de76c2-a03c-4795-acff-d1ae600846b7",
+            "type": "uniformlyDistributedLoad",
+            "attributes": {
+                "sdl": 10.0,
+                "ll": 10.0
+            }
+        },
+        {
+            "id": "5823c83a-2544-42db-ac12-5201080a50f3",
+            "externalRefId": "b9228fe5-898e-44e4-a39c-8d27d72f7fb4",
+            "type": "slab",
+            "attributes": {
+                "faceId": "a181b34a-b337-400f-aad5-b71642a70703",
+                "structuralReaction": {
+                    "slabSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "8b8e4820-0c9d-49b1-9778-c40ffa009215",
+            "externalRefId": "87d629c4-4501-45d8-af98-a85a98dc29eb",
+            "type": "columnDesignCriteria",
+            "attributes": {
+                "elementType": "column",
+                "designRegionStandard": "Eurocode_Singapore",
+                "designMaterial": "concrete",
+                "usageType": "storage",
+                "materialGrade": "C40/50",
+                "workingLife": "50",
+                "exposureClasses": "XC3"
+            }
+        },
+        {
+            "id": "7f13ae88-004d-45be-a447-699d1ab71268",
+            "externalRefId": "37f146a0-64a0-4277-a2f7-da8fe84013f0",
+            "type": "slab",
+            "attributes": {
+                "faceId": "e104bfe5-dbf7-448f-b179-b7b2bfe1c86a",
+                "structuralReaction": {
+                    "slabSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "aba2fbdd-5118-41fe-9b11-1975a7c7889b",
+            "externalRefId": "b3f7154a-c903-4f45-8dae-b59d7d4ec1c2",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "62b179de-9742-41c4-9c2e-aaa3af87eb87",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
+                }
+            }
+        },
+        {
+            "id": "f5798f8a-8e77-4b6b-9892-24e33e2925eb",
+            "externalRefId": "5dc695e6-b814-4d21-9ba7-59a822424cac",
             "type": "column",
             "attributes": {
-                "edgeId": "69bc04eb-ea68-431f-98e0-b3a08d426be1",
+                "edgeId": "ec7e2cae-c63a-463e-9568-490676d29032",
                 "geometry": {
                     "shape": "Rectangle",
                     "floorToFloorHeight": 10000.0,
@@ -1527,33 +1541,8 @@
             }
         },
         {
-            "id": "8b8e4820-0c9d-49b1-9778-c40ffa009215",
-            "externalRefId": "87d629c4-4501-45d8-af98-a85a98dc29eb",
-            "type": "columnDesignCriteria",
-            "attributes": {
-                "elementType": "column",
-                "designRegionStandard": "Eurocode_Singapore",
-                "designMaterial": "concrete",
-                "usageType": "storage",
-                "materialGrade": "C40/50",
-                "workingLife": "50",
-                "exposureClasses": "XC3"
-            }
-        },
-        {
-            "id": "5823c83a-2544-42db-ac12-5201080a50f3",
-            "externalRefId": "b9228fe5-898e-44e4-a39c-8d27d72f7fb4",
-            "type": "slab",
-            "attributes": {
-                "faceId": "a181b34a-b337-400f-aad5-b71642a70703",
-                "structuralReaction": {
-                    "slabSelfWeight": 10.0
-                }
-            }
-        },
-        {
-            "id": "96112c56-aa00-41ab-9966-11d153a462a0",
-            "externalRefId": "26a313a0-4bbd-4b0b-b88f-7909466ad960",
+            "id": "a2da23a4-e620-4812-8996-268df98458ae",
+            "externalRefId": "1e8a6595-1d5e-4da3-98a8-8fd4967564f3",
             "type": "column",
             "attributes": {
                 "edgeId": "bde581e8-10f2-47d7-b268-43dbcf0a9c7a",
@@ -1669,6 +1658,17 @@
                         "amountOfShearLinkRequired": 1047.4281870860925,
                         "provideShearLink": "4H8-175"
                     }
+                }
+            }
+        },
+        {
+            "id": "3474490b-1401-4676-8ccf-0772e98776f7",
+            "externalRefId": "304b18ff-2885-4365-b8a9-f17fcc63d1e6",
+            "type": "beam",
+            "attributes": {
+                "edgeId": "8b8e4820-0c9d-49b1-9778-c40ffa009215",
+                "structuralReaction": {
+                    "beamSelfWeight": 10.0
                 }
             }
         }
