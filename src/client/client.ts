@@ -43,7 +43,7 @@ const selectedMaterial = new THREE.MeshNormalMaterial({
 let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
 const pickableObjects: THREE.Mesh[] = [];
-let currentPickedObject: THREE.Object3D | THREE.Mesh | null;
+let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
@@ -94,11 +94,11 @@ function init() {
     raycaster = new THREE.Raycaster();
 
     //Grid
-    const gridHelper = new THREE.GridHelper(500, 500, 0x444444, 0x888888);
+    const gridHelper = new THREE.GridHelper(1000, 1000, 0x444444, 0x888888);
     scene.add(gridHelper);
 
     //Plane
-    const geometry = new THREE.PlaneBufferGeometry(500, 500);
+    const geometry = new THREE.PlaneBufferGeometry(1000, 1000);
     geometry.rotateX(- Math.PI / 2);
     plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
@@ -256,11 +256,17 @@ function onDocumentMouseDown(event: MouseEvent) {
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object ;
-        const position = JSON.stringify({
+        let position = JSON.stringify({
             x: currentPickedObject.position.x,
             y: currentPickedObject.position.z,
             z: currentPickedObject.position.y
         });
+
+        if(currentPickedObject.userData.points) {
+            position = JSON.stringify(currentPickedObject.userData.points, null, 2)
+        }
+
+   
         const id = currentPickedObject.userData.uuid;
         const data = getOutputData(id);
         debugDiv.value = `ID: ${id} \nPosition: ${position} \n${data}`;
@@ -352,7 +358,6 @@ function drawVEdge(edge: any, thickness: number) {
 
 function drawFace(face: any) {
 
-    console.log("faceId: " + face.userData.uuid)
     const points = face.vertex;
 
     const [firstP, ...restOfP] = points
@@ -411,13 +416,15 @@ function parseSlabs(data: any) {
     const slabs = vFaces.map(f => {
         const [floorNo] = getFaceFloorNum(f);
         const uuid = f.uuid;
+        const vertexs = getSlabVertex(f)
         return {
             userData: {
                 type: "slab",
                 uuid: uuid,
-                floorNo: floorNo
+                floorNo: floorNo,
+                points: vertexs
             },
-            vertex: getSlabVertex(f)
+            vertex: vertexs
         }
     });
 
@@ -573,6 +580,8 @@ function getOutputData(id: any) {
 
     return JSON.stringify(data, null, 2)
 }
+
+
 //End of - Json parsing
 
 function parseAndDrawSkeleton() {
