@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Three.js TypeScript Tutorials by Sean Bradley</title>
+    <title>Column Viewer</title>
     <style>
         body {
             overflow: hidden;
@@ -16,26 +16,55 @@
             margin: 0px;
         }
 
+        #debugDiv {
+            position: absolute;
+            color: white;
+            left: 0px;
+            top: 50px;
+            padding-inline-start: 10px;
+            pointer-events: auto;
+        }
+
         #debug1 {
             font-family: monospace;
             font-size: small;
-            position: absolute;
             text-align: left;
-            left: 0px;
-            top: 50px;
-            border: 1px solid black;
-            width: 400px;
+            width: 450px;
             height: 600px;
             color: black;
             pointer-events: auto;
+        }
+
+        #tSkeletonSrc, #tResultSrc {
+            position: relative;
+            width: 450px;
+            height: 50px;
+
         }
     </style>
 </head>
 
 <body>
-    <div id="debugDiv">
-        <textarea name="debug" readonly placeholder="Debug Area" id="debug1"></textarea>
-    </div>
+
+    <ul id="debugDiv">
+      
+        <li>
+            <textarea class="content" name="debug" readonly placeholder="Debug Area" id="debug1"></textarea>
+        </li>
+        <li>
+            <textarea name="tSkeletonSrc" id="tSkeletonSrc"  placeholder="Skeleton scource"></textarea>
+        </li>
+        <li>
+            <button id="bAddSkeleton">Read Skeleton</button>
+        </li>
+        <li>
+            <textarea name="tResultSrc" id="tResultSrc"  placeholder="Solved result"></textarea>
+        </li>
+        <li>
+            <button id="bAddResult">Read Solved Column</button>
+        </li>
+
+    </ul>
     <div id="canvas"></div>
     <script type="module" src="bundle.js"></script>
 </body>

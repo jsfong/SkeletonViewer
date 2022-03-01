@@ -4,8 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
+const cube8Cells = require("./cube8Cells.json");
 const outputData = require("./output.json");
+const cube8CellsOutputData = require("./cube8CellsOutput.json");
 import { GUI } from 'dat.gui'
+import { type } from 'os';
+import { text } from 'stream/consumers';
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
 let camera: THREE.PerspectiveCamera;
@@ -18,12 +22,11 @@ let stats: Stats;
 let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
 
+//JSON
+let jSkeleton = cube8Cells;
+let jOutput = cube8CellsOutputData;
+
 //Material
-// const normalMaterial = new THREE.MeshNormalMaterial({
-//     opacity: 0.7,
-//     transparent: true,
-//     side: THREE.FrontSide
-// })
 let normalMaterial = new THREE.MeshLambertMaterial({
     color: 0x939393,
     emissive: 0x2d2d2d
@@ -40,22 +43,32 @@ const selectedMaterial = new THREE.MeshNormalMaterial({
 let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
 const pickableObjects: THREE.Mesh[] = [];
-let currentPickedObject: THREE.Object3D | null;
+let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
+const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonElement;
+const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
+const bReadResult = document.getElementById('bAddResult') as HTMLButtonElement;
+const tResultSrc = document.getElementById('tResultSrc') as HTMLTextAreaElement;
 
 //GUI
 const gui = new GUI()
+let floorDropDownController
 let lightConfig = {
     followCamera: false
 };
+var settings = {
+    floorLevelToDraw: 'ALL'
+};
+
+
 
 //ThreeJs Drawing 
 function init() {
     //Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-    camera.position.set(20, 20, 20);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300)
+    camera.position.set(50, 50, 50);
     camera.lookAt(0, 0, 0);
 
     //Scene
@@ -81,11 +94,11 @@ function init() {
     raycaster = new THREE.Raycaster();
 
     //Grid
-    const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x888888);
+    const gridHelper = new THREE.GridHelper(1000, 1000, 0x444444, 0x888888);
     scene.add(gridHelper);
 
     //Plane
-    const geometry = new THREE.PlaneBufferGeometry(100, 100);
+    const geometry = new THREE.PlaneBufferGeometry(1000, 1000);
     geometry.rotateX(- Math.PI / 2);
     plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
@@ -101,8 +114,15 @@ function init() {
 
     //Event listener
     document.addEventListener('resize', onWindowResize);
+
+    renderer.domElement.addEventListener('wheel', onDocumentMouseScroll, false);
     renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
     renderer.domElement.addEventListener('pointerdown', onDocumentMouseDown, false);
+
+    bReadSkeleton.addEventListener("click", readSkeleton, false);
+    bReadResult.addEventListener("click", readResult, false);
+    tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
+    tResultSrc.value = JSON.stringify(jOutput, null, 2);
 }
 
 function initGUI() {
@@ -131,13 +151,41 @@ function initGUI() {
             Number(data.emissive.toString().replace('#', '0x'))
         )
     })
-    meshLambertMaterialFolder.open()
 
     const lightFolder = gui.addFolder('Light')
     lightFolder.add(lightConfig, 'followCamera', false).onChange(() => {
         light.position.copy(camera.position)
     })
 
+
+    const levelFolder = gui.addFolder('Level')
+    floorDropDownController = levelFolder.add(settings, 'floorLevelToDraw', ['ALL']).onChange(() => {
+        parseAndDrawSkeleton()
+    });
+
+}
+
+function readSkeleton(this: HTMLElement, ev: Event) {
+    console.log("Read Skeleton")
+    ev.preventDefault();
+
+    if (tSkeletonSrc.value) {
+        console.log("Detected skeleton input")
+        jSkeleton = JSON.parse(tSkeletonSrc.value)
+    }
+
+    console.log("Redrawing Skeleton ..")
+    parseAndDrawSkeleton();
+}
+
+function readResult (this: HTMLElement, ev: Event) {
+    console.log("Read Result")
+    ev.preventDefault();
+
+    if (tResultSrc.value) {
+        console.log("Detected Result input")
+        jOutput = JSON.parse(tResultSrc.value)
+    }
 }
 
 function updateMaterial() {
@@ -150,6 +198,10 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
+    // render()
+}
+
+function onDocumentMouseScroll() {
     render()
 }
 
@@ -188,6 +240,8 @@ function onDocumentMouseMove(event: MouseEvent) {
     if (lightConfig.followCamera) {
         light.position.copy(camera.position);
     }
+
+    render()
 }
 
 function onDocumentMouseDown(event: MouseEvent) {
@@ -201,10 +255,21 @@ function onDocumentMouseDown(event: MouseEvent) {
 
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
-        currentPickedObject = intersects[0].object;
-        const id = currentPickedObject.userData.uuid;        
+        currentPickedObject = intersects[0].object ;
+        let position = JSON.stringify({
+            x: currentPickedObject.position.x,
+            y: currentPickedObject.position.z,
+            z: currentPickedObject.position.y
+        });
+
+        if(currentPickedObject.userData.points) {
+            position = JSON.stringify(currentPickedObject.userData.points, null, 2)
+        }
+
+   
+        const id = currentPickedObject.userData.uuid;
         const data = getOutputData(id);
-        debugDiv.value = data;
+        debugDiv.value = `ID: ${id} \nPosition: ${position} \n${data}`;
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -213,12 +278,15 @@ function onDocumentMouseDown(event: MouseEvent) {
             pickableObjects[i].material = originalMaterials[o.uuid]
         }
     })
+
+    render()
 }
 
 function animate() {
     requestAnimationFrame(animate)
 
-    render()
+    //To save process only render when needed
+    // render()
     stats.update()
 }
 
@@ -291,17 +359,13 @@ function drawVEdge(edge: any, thickness: number) {
 function drawFace(face: any) {
 
     const points = face.vertex;
-    const p1 = points[0];
-    const p2 = points[1];
-    const p3 = points[2];
-    const p4 = points[3];
+
+    const [firstP, ...restOfP] = points
 
     const triangleShape = new THREE.Shape();
-    triangleShape.moveTo(p1.x, p1.z);
-    triangleShape.lineTo(p2.x, p2.z);
-    triangleShape.lineTo(p3.x, p3.z);
-    triangleShape.lineTo(p4.x, p4.z);
-    triangleShape.lineTo(p1.x, p1.z); // close path
+    triangleShape.moveTo(firstP.x, firstP.z);
+    restOfP.forEach((p: { x: number; z: number; }) => triangleShape.lineTo(p.x, p.z))
+    triangleShape.lineTo(firstP.x, firstP.z); // close path
 
     // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
     // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
@@ -312,7 +376,7 @@ function drawFace(face: any) {
     trimesh.userData = face.userData
 
     trimesh.rotateX(Math.PI / 2)
-    trimesh.position.setY(p1.y);
+    trimesh.position.setY(firstP.y);
     scene.add(trimesh)
     pickableObjects.push(trimesh);
     originalMaterials[trimesh.uuid] = trimesh.material;
@@ -323,8 +387,9 @@ function drawFace(face: any) {
 
 //Json parsing
 function parseEdges(data: any) {
-    const x = "$.cellComplex.*.faces.*.edges.*";
+    const x = "$.cellComplex.cells.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
+    console.log("Num of edges " + edges.length)
 
     let vEdges = edges.map(e => {
         const uuid = e.uuid;
@@ -342,34 +407,76 @@ function parseEdges(data: any) {
 
 function parseSlabs(data: any) {
 
-    const x = "$.cellComplex.*.faces.*";
+    const x = "$.cellComplex.cells.*.faces.*";
     let faces = jsonpath.query(data, x);
 
+    console.log("Number of face " + faces.length)
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
+
     const slabs = vFaces.map(f => {
         const [floorNo] = getFaceFloorNum(f);
         const uuid = f.uuid;
+        const vertexs = getSlabVertex(f)
         return {
             userData: {
                 type: "slab",
                 uuid: uuid,
-                floorNo: floorNo
+                floorNo: floorNo,
+                points: vertexs
             },
-            vertex: getSlabVertex(f)
+            vertex: vertexs
         }
     });
 
     return slabs;
 }
 
+function isSameFace(f1: Vector3[], f2: Vector3[]) {
+    if (f1 === f2) return true;
+    if (f1 == null || f2 == null) return false;
+    if (f1.length !== f2.length) return false;
+
+    const oF1 = f1.sort()
+    const oF2 = f2.sort()
+
+    for (var i = 0; i < f1.length; ++i) {
+        if (!oF1[i].equals(oF2[i])) return false;
+    }
+    return true;
+
+}
+
+function getUniqueFace(faces: any[]) {
+    let output: any[] = [];
+
+    faces.forEach(f => {
+
+        let found = output.find(o => {
+            return isSameFace(f.vertex, o.vertex)
+        })
+        if (!found) {
+            output.push(f);
+        }
+    })
+
+    return output
+
+}
+
+function isNotGroundFloor(face: any) {
+    return face.userData.floorNo !== 0
+}
+
 function getFaceFloorNum(face: any) {
     const pFloorNum = "$.edges.*.*.floor";
     let floorNum = jsonpath.query(face, pFloorNum);
 
+    // console.log("fn: \n" + floorNum)
+
     var filteredArray = floorNum.filter(function (item, pos) {
         return floorNum.indexOf(item) == pos;
     });
-
+    // console.log("fn f: \n" + filteredArray)
 
     return filteredArray;
 }
@@ -377,8 +484,6 @@ function getFaceFloorNum(face: any) {
 function getSlabVertex(face: any) {
 
     const x = "$.edges.*";
-    const floorNum = "$.edges.*.*.floor";
-
     let edges = jsonpath.query(face, x);
 
     const listOfVertex = edges.map(e => {
@@ -394,7 +499,7 @@ function getSlabVertex(face: any) {
 
 function getOrderedVertexFromEdge(edges: any[]) {
 
-    const [firstV, ...restOfVs] = edges;
+    let [firstV, ...restOfVs] = edges;
 
     const orderVertex: Vector3[] = []
     orderVertex.push(firstV.start);
@@ -403,17 +508,19 @@ function getOrderedVertexFromEdge(edges: any[]) {
     let index = firstV.end;
     while (orderVertex.length < edges.length) {
 
-        const matchedStart = restOfVs.find(v => v.start.equals(index));
+        const matchedStart = restOfVs.find(v => v && v.start.equals(index));
         if (matchedStart) {
             orderVertex.push(matchedStart.end);
             index = matchedStart.end;
+            delete restOfVs[restOfVs.indexOf(matchedStart)]
             continue;
         }
 
-        const matchedEnd = restOfVs.find(v => v.end.equals(index))
+        const matchedEnd = restOfVs.find(v => v && v.end.equals(index))
         if (matchedEnd) {
             orderVertex.push(matchedEnd.start);
             index = matchedEnd.start;
+            delete restOfVs[restOfVs.indexOf(matchedEnd)]
             continue;
         }
     }
@@ -421,7 +528,6 @@ function getOrderedVertexFromEdge(edges: any[]) {
     return orderVertex;
 
 }
-
 
 function isEdgeVertical(edge: any) {
 
@@ -440,54 +546,68 @@ function isEdgeVertical(edge: any) {
 
 }
 
-function isUnique(edge: Vector3[], edges: Vector3[][]) {
-
-    let found = edges.find(e => {
-        return (
-            edge[0].equals(e[0])
-            || edge[0].equals(e[1])
-            || edge[1].equals(e[0])
-            || edge[1].equals(e[1])
-        );
-    });
-
-    return !found;
+function isVertexEqual(e1: Vector3, e2: Vector3) {
+    return e1.x === e2.x && e1.y === e2.y && e1.z === e2.z;
 }
 
 function getUnique(points: any[]) {
-
-
     let output: any[] = [];
 
     points.forEach(p => {
-        if (isUnique(p.vertex, output.map(o => o.vertex))) {
+
+        let found = output.find(o => {
+            return isEdgeSame(p.vertex, o.vertex)
+        })
+        if (!found) {
             output.push(p);
         }
+
     })
 
     return output;
 }
 
+function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
+    return (
+        (e1[0].equals(e2[0]) && e1[1].equals(e2[1]))
+        || (e1[0].equals(e2[1]) && e1[1].equals(e2[0]))
+    )
+}
+
 function getOutputData(id: any) {
     const x = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
-    let data = jsonpath.query(outputData, x);
+    let data = jsonpath.query(jOutput, x);
 
     return JSON.stringify(data, null, 2)
 }
+
+
 //End of - Json parsing
 
+function parseAndDrawSkeleton() {
+    //Draw edge
+    let vEdge = parseEdges(jSkeleton);
+    console.log("Num of edges " + vEdge.length)
+
+    let vE = vEdge.filter(isEdgeVertical);
+    console.log("Num of verticalEdge " + vE.length)
+
+    let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
+    console.log("Num of unique verticalEdge " + verticalEdge.length)
+    verticalEdge.forEach(e => drawVEdge(e, 1));
+
+    //Draw face
+    const slabs = parseSlabs(jSkeleton)
+    console.log("Num of horizantal slabs " + slabs.length)
+
+    const uniqueSlabs = getUniqueFace(slabs).filter(s => isNotGroundFloor(s))
+    console.log("Num of unique horizantal slabs " + uniqueSlabs.length)
+
+    uniqueSlabs.forEach(s => drawFace(s))
+}
 
 init()
 initGUI()
-//Draw edge
-let vEdge = parseEdges(skeleton);
-let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
-verticalEdge.forEach(e => drawVEdge(e, 1));
-
-//Draw face
-const slabs = parseSlabs(skeleton)
-slabs.forEach(s => drawFace(s))
-
-
+// parseAndDrawSkeleton()
 animate()
 
