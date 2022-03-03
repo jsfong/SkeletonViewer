@@ -5,6 +5,7 @@ import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
 const cube8Cells = require("./cube8Cells.json");
+const itypeSkeleton = require("./itypeSkeleton.json");
 const outputData = require("./output.json");
 const cube8CellsOutputData = require("./cube8CellsOutput.json");
 import { GUI } from 'dat.gui'
@@ -23,7 +24,7 @@ let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
 
 //JSON
-let jSkeleton = cube8Cells;
+let jSkeleton = itypeSkeleton;
 let jOutput = cube8CellsOutputData;
 
 //Material
@@ -268,8 +269,11 @@ function onDocumentMouseDown(event: MouseEvent) {
 
    
         const id = currentPickedObject.userData.uuid;
-        const data = getOutputData(id);
-        debugDiv.value = `ID: ${id} \nPosition: ${position} \n${data}`;
+        const columnData = getOutputData(id);
+        const columnConfig = getOutputDataWithConfig(id);
+        debugDiv.value = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
+
+    
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -581,6 +585,17 @@ function getOutputData(id: any) {
     return JSON.stringify(data, null, 2)
 }
 
+function getOutputDataWithConfig(id: any) {
+
+    const columnJPath = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')].attributes.columnConfigExternalRefId`
+    let columnConfigIds = jsonpath.query(jOutput, columnJPath);
+
+    const configId = columnConfigIds[0];
+    const columnConfigJPath = `$.elements[?(@.type == 'columnConfiguration' && @.externalRefId == '${configId}')]`
+    let data = jsonpath.query(jOutput, columnConfigJPath)
+
+    return JSON.stringify(data, null, 2)
+}
 
 //End of - Json parsing
 
