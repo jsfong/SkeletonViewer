@@ -43,7 +43,7 @@ const selectedMaterial = new THREE.MeshNormalMaterial({
 //Picking Config
 let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
-const pickableObjects: THREE.Mesh[] = [];
+let pickableObjects: THREE.Mesh[] = [];
 let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
@@ -60,14 +60,16 @@ let lightConfig = {
     followCamera: false
 };
 var settings = {
-    floorLevelToDraw: 'ALL'
+    floorLevelToDraw: 'ALL',
+    columnLevelToDraw: 'ALL',
+    beamLevelToDraw: 'ALL',
 };
-
 
 //Skeleton Config
 const EDGE_THICKNESS = 1
-const BEAM_DISPLAY_OFFSET = EDGE_THICKNESS / 2
-
+let columnShowLevel = 'ALL'
+let slabShowLevel = 'ALL'
+let beamShowLevel = 'ALL'
 
 //ThreeJs Drawing 
 function init() {
@@ -164,7 +166,16 @@ function initGUI() {
 
 
     const levelFolder = gui.addFolder('Level')
-    floorDropDownController = levelFolder.add(settings, 'floorLevelToDraw', ['ALL']).onChange(() => {
+    levelFolder.add(settings, 'floorLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
+        slabShowLevel = value
+        parseAndDrawSkeleton()
+    });
+    levelFolder.add(settings, 'columnLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
+        columnShowLevel = value
+        parseAndDrawSkeleton()
+    });
+    levelFolder.add(settings, 'beamLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
+        beamShowLevel = value
         parseAndDrawSkeleton()
     });
 
@@ -183,7 +194,7 @@ function readSkeleton(this: HTMLElement, ev: Event) {
     parseAndDrawSkeleton();
 }
 
-function readResult (this: HTMLElement, ev: Event) {
+function readResult(this: HTMLElement, ev: Event) {
     console.log("Read Result")
     ev.preventDefault();
 
@@ -260,23 +271,23 @@ function onDocumentMouseDown(event: MouseEvent) {
 
     intersects = raycaster.intersectObjects(pickableObjects, false);
     if (intersects.length > 0) {
-        currentPickedObject = intersects[0].object ;
+        currentPickedObject = intersects[0].object;
         let position = JSON.stringify({
             x: currentPickedObject.position.x,
             y: currentPickedObject.position.z,
             z: currentPickedObject.position.y
         });
 
-        if(currentPickedObject.userData.points) {
+        if (currentPickedObject.userData.points) {
             position = JSON.stringify(currentPickedObject.userData.points, null, 2)
         }
-   
+
         const id = currentPickedObject.userData.uuid;
         const columnData = getOutputData(id);
         const columnConfig = getOutputDataWithConfig(id);
         debugDiv.value = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
 
-    
+
     }
     pickableObjects.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
@@ -323,6 +334,8 @@ function drawHEdge(edge: any) {
     cube.position.setY(Math.min(p1.y, p2.y) - y / 2);
     cube.position.setZ(Math.min(p1.z, p2.z) + z / 2);
     cube.userData = edge.userData
+    cube.userData.type = 'beam'
+    cube.userData.floorLevel = edge.userData.floorLevel[0]
 
     scene.add(cube)
     pickableObjects.push(cube);
@@ -353,6 +366,8 @@ function drawVEdge(edge: any) {
     cube.position.setY(Math.min(p1.y, p2.y) + y / 2);
     cube.position.setZ(p1.z);
     cube.userData = edge.userData
+    cube.userData.type = 'column'
+    cube.userData.floorLevel = Math.max(edge.userData.floorLevel[0], edge.userData.floorLevel[0])
 
     scene.add(cube)
     pickableObjects.push(cube);
@@ -390,7 +405,7 @@ function drawFace(face: any) {
 //End of - ThreeJs Drawing 
 
 //Json parsing
-function parseEdges(data: any) {
+function parseEdges(data: any, isVertical: boolean) {
     const x = "$.cellComplex.cells.*.faces.*.edges.*";
     let edges = jsonpath.query(data, x);
     console.log("Num of edges " + edges.length)
@@ -399,11 +414,13 @@ function parseEdges(data: any) {
         const uuid = e.uuid;
         let vStart = new THREE.Vector3(e.start.x, e.start.z, e.start.y);
         let vEnd = new THREE.Vector3(e.end.x, e.end.z, e.end.y);
+        let type = isVertical ? 'column' : 'beam';
+        let floorLevel = isVertical ? Math.max(e.start.floor, e.end.floor) :  e.start.floor;
         return {
             userData: {
-                type: "slab",
+                type: type,
                 uuid: uuid,
-                floorLevel: e.floorLevel,
+                floorLevel: floorLevel,
                 points: [vStart, vEnd]
             },
             vertex: [vStart, vEnd]
@@ -600,33 +617,48 @@ function getOutputDataWithConfig(id: any) {
 
 //End of - Json parsing
 
+function updateStructureInScene() {
+
+}
+
+
+function removeStructureFromScene(){
+    pickableObjects.forEach(obj => scene.remove(obj))
+    pickableObjects = []  
+}
+
 function parseAndDrawSkeleton() {
+    removeStructureFromScene()
+
     //Draw column
-    let vEdge = parseEdges(jSkeleton);
-    console.log("Num of edges " + vEdge.length)
-
-    let vE = vEdge.filter(isEdgeVertical);
-    console.log("Num of verticalEdge " + vE.length)
-
-    let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
+    const vEdge = parseEdges(jSkeleton, true);
+    const verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
     console.log("Num of unique verticalEdge " + verticalEdge.length)
-    verticalEdge.forEach(e => drawVEdge(e));
+
+    const displayEdge = verticalEdge
+        .filter(e => e.userData.floorLevel !== 0)
+        .filter(e => (columnShowLevel === 'ALL' ? true : e.userData.floorLevel == columnShowLevel))
+    displayEdge.forEach(e => drawVEdge(e));
 
     //Draw face
     const slabs = parseSlabs(jSkeleton)
-    console.log("Num of horizantal slabs " + slabs.length)
-
     const uniqueSlabs = getUniqueFace(slabs).filter(s => isNotGroundFloor(s))
     console.log("Num of unique horizantal slabs " + uniqueSlabs.length)
 
-    uniqueSlabs.forEach(s => drawFace(s))
+    const displaySlabs = uniqueSlabs
+    .filter(e => e.userData.floorLevel !== 0)
+    .filter(e => (slabShowLevel === 'ALL' ? true : e.userData.floorLevel == slabShowLevel))
+    displaySlabs.forEach(s => drawFace(s))
 
     //Draw beam
-    let horizontalEdge = getUnique(vEdge.filter(e => !isEdgeVertical(e)))
+    const hEdge = parseEdges(jSkeleton, false);
+    const horizontalEdge = getUnique(hEdge.filter(e => !isEdgeVertical(e)))
     console.log("Num of horizontalEdge " + horizontalEdge.length)
 
-    const lvl2Edge = horizontalEdge.filter(e=> e.floorLevel !== 0)
-    lvl2Edge.forEach(e => drawHEdge(e))
+    const displayBeams = horizontalEdge
+    .filter(e => e.userData.floorLevel !== 0)
+    .filter(e => (beamShowLevel === 'ALL' ? true : e.userData.floorLevel == beamShowLevel))
+    displayBeams.forEach(e => drawHEdge(e))
 }
 
 init()
