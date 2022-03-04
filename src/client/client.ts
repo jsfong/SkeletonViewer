@@ -64,6 +64,10 @@ var settings = {
 };
 
 
+//Skeleton Config
+const EDGE_THICKNESS = 1
+const BEAM_DISPLAY_OFFSET = EDGE_THICKNESS / 2
+
 
 //ThreeJs Drawing 
 function init() {
@@ -266,7 +270,6 @@ function onDocumentMouseDown(event: MouseEvent) {
         if(currentPickedObject.userData.points) {
             position = JSON.stringify(currentPickedObject.userData.points, null, 2)
         }
-
    
         const id = currentPickedObject.userData.uuid;
         const columnData = getOutputData(id);
@@ -298,35 +301,36 @@ function render() {
     renderer.render(scene, camera)
 }
 
-function drawEdge(points: Vector3[], thickness: number) {
+function drawHEdge(edge: any) {
 
-    const p1 = points[0];
-    const p2 = points[1];
+    const p1 = edge.vertex[0];
+    const p2 = edge.vertex[1];
 
     let x = Math.abs(p1.x - p2.x);
     let y = Math.abs(p1.y - p2.y);
     let z = Math.abs(p1.z - p2.z);
 
-    x = x > 0 ? x : thickness;
-    y = y > 0 ? y : thickness;
-    z = z > 0 ? z : thickness;
+    x = x > 0 ? x : EDGE_THICKNESS;
+    y = y > 0 ? y : EDGE_THICKNESS;
+    z = z > 0 ? z : EDGE_THICKNESS;
 
-    const geometry = new THREE.BoxGeometry(x, y, z);
-    const material = normalMaterial;
-    const cube = new THREE.Mesh(geometry, material);
+    const geometry = new THREE.BoxBufferGeometry(x, y, z)
+    const material = normalMaterial
+    const cube = new THREE.Mesh(geometry, material)
 
-    const xp = (p1.x - p2.x) / 2;
-    const yp = (p1.y - p2.y) / 2;
-    const zp = (p1.z - p2.z) / 2;
+    //Move into place
+    cube.position.setX(Math.min(p1.x, p2.x) + x / 2);
+    cube.position.setY(Math.min(p1.y, p2.y) - y / 2);
+    cube.position.setZ(Math.min(p1.z, p2.z) + z / 2);
+    cube.userData = edge.userData
 
-    cube.position.set(xp, yp, zp);
     scene.add(cube)
     pickableObjects.push(cube);
     originalMaterials[cube.uuid] = cube.material;
 
 }
 
-function drawVEdge(edge: any, thickness: number) {
+function drawVEdge(edge: any) {
 
 
     const p1 = edge.vertex[0];
@@ -336,9 +340,9 @@ function drawVEdge(edge: any, thickness: number) {
     let y = Math.abs(p1.y - p2.y);
     let z = Math.abs(p1.z - p2.z);
 
-    x = x > 0 ? x : thickness;
-    y = y > 0 ? y : thickness;
-    z = z > 0 ? z : thickness;
+    x = x > 0 ? x : EDGE_THICKNESS;
+    y = y > 0 ? y : EDGE_THICKNESS;
+    z = z > 0 ? z : EDGE_THICKNESS;
 
     const geometry = new THREE.BoxBufferGeometry(x, y, z)
     const material = normalMaterial
@@ -348,11 +352,7 @@ function drawVEdge(edge: any, thickness: number) {
     cube.position.setX(p1.x);
     cube.position.setY(Math.min(p1.y, p2.y) + y / 2);
     cube.position.setZ(p1.z);
-    cube.userData = {
-        type: edge.type,
-        uuid: edge.uuid
-    };
-
+    cube.userData = edge.userData
 
     scene.add(cube)
     pickableObjects.push(cube);
@@ -400,8 +400,12 @@ function parseEdges(data: any) {
         let vStart = new THREE.Vector3(e.start.x, e.start.z, e.start.y);
         let vEnd = new THREE.Vector3(e.end.x, e.end.z, e.end.y);
         return {
-            type: "column",
-            uuid: uuid,
+            userData: {
+                type: "slab",
+                uuid: uuid,
+                floorLevel: e.floorLevel,
+                points: [vStart, vEnd]
+            },
             vertex: [vStart, vEnd]
         }
     });
@@ -418,14 +422,14 @@ function parseSlabs(data: any) {
     const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
 
     const slabs = vFaces.map(f => {
-        const [floorNo] = getFaceFloorNum(f);
+        const [floorLevel] = getFaceFloorNum(f);
         const uuid = f.uuid;
         const vertexs = getSlabVertex(f)
         return {
             userData: {
                 type: "slab",
                 uuid: uuid,
-                floorNo: floorNo,
+                floorLevel: floorLevel,
                 points: vertexs
             },
             vertex: vertexs
@@ -468,19 +472,16 @@ function getUniqueFace(faces: any[]) {
 }
 
 function isNotGroundFloor(face: any) {
-    return face.userData.floorNo !== 0
+    return face.userData.floorLevel !== 0
 }
 
 function getFaceFloorNum(face: any) {
     const pFloorNum = "$.edges.*.*.floor";
     let floorNum = jsonpath.query(face, pFloorNum);
 
-    // console.log("fn: \n" + floorNum)
-
     var filteredArray = floorNum.filter(function (item, pos) {
         return floorNum.indexOf(item) == pos;
     });
-    // console.log("fn f: \n" + filteredArray)
 
     return filteredArray;
 }
@@ -600,7 +601,7 @@ function getOutputDataWithConfig(id: any) {
 //End of - Json parsing
 
 function parseAndDrawSkeleton() {
-    //Draw edge
+    //Draw column
     let vEdge = parseEdges(jSkeleton);
     console.log("Num of edges " + vEdge.length)
 
@@ -609,7 +610,7 @@ function parseAndDrawSkeleton() {
 
     let verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
     console.log("Num of unique verticalEdge " + verticalEdge.length)
-    verticalEdge.forEach(e => drawVEdge(e, 1));
+    verticalEdge.forEach(e => drawVEdge(e));
 
     //Draw face
     const slabs = parseSlabs(jSkeleton)
@@ -619,10 +620,16 @@ function parseAndDrawSkeleton() {
     console.log("Num of unique horizantal slabs " + uniqueSlabs.length)
 
     uniqueSlabs.forEach(s => drawFace(s))
+
+    //Draw beam
+    let horizontalEdge = getUnique(vEdge.filter(e => !isEdgeVertical(e)))
+    console.log("Num of horizontalEdge " + horizontalEdge.length)
+
+    const lvl2Edge = horizontalEdge.filter(e=> e.floorLevel !== 0)
+    lvl2Edge.forEach(e => drawHEdge(e))
 }
 
 init()
 initGUI()
-// parseAndDrawSkeleton()
 animate()
 
