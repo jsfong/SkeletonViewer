@@ -11,6 +11,7 @@ const cube8CellsOutputData = require("./cube8CellsOutput.json");
 import { GUI } from 'dat.gui'
 import { type } from 'os';
 import { text } from 'stream/consumers';
+import * as e from 'express';
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
 let camera: THREE.PerspectiveCamera;
@@ -48,6 +49,7 @@ let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
 const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
+const debugDiv2 = document.getElementById('debugDiv2') as HTMLDivElement
 const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonElement;
 const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
 const bReadResult = document.getElementById('bAddResult') as HTMLButtonElement;
@@ -180,6 +182,13 @@ function initGUI() {
     });
     levelFolder.open()
 
+}
+
+function updateSkeletonInfo() {
+    const slabCount = pickableObjects.filter(o => o.userData.type === 'slab').filter(o => o.visible === true).length
+    const beamCount = pickableObjects.filter(o => o.userData.type === 'beam').filter(o => o.visible === true).length
+    const columnCount = pickableObjects.filter(o => o.userData.type === 'column').filter(o => o.visible === true).length
+    debugDiv2.innerText = `Slab : ${slabCount}\nBeam : ${beamCount}\nColumn : ${columnCount}`
 }
 
 function readSkeleton(this: HTMLElement, ev: Event) {
@@ -484,10 +493,6 @@ function getUniqueFace(faces: any[]) {
 
 }
 
-function isNotGroundFloor(face: any) {
-    return face.userData.floorLevel !== 0
-}
-
 function getFaceFloorNum(face: any) {
     const pFloorNum = "$.edges.*.*.floor";
     let floorNum = jsonpath.query(face, pFloorNum);
@@ -565,17 +570,6 @@ function isEdgeVertical(edge: any) {
     const points = edge.vertex
 
     return isVertexsVertical(points)
-
-    // const p1 = points[0];
-    // const p2 = points[1];
-
-    // if (Math.abs(p1.y - p2.y) > 0
-    //     && Math.abs(p1.x - p2.x) < 1
-    //     && Math.abs(p1.z - p2.z) < 1) {
-    //     return true;
-    // } else {
-    //     return false;
-    // }
 
 }
 
@@ -655,8 +649,9 @@ function updateStructureInScene(typeToUpdate: any) {
     filteredObject.forEach(obj => {
         obj.visible = true
     })
-}
 
+    updateSkeletonInfo()
+}
 
 function removeStructureFromScene() {
     pickableObjects.forEach(obj => scene.remove(obj))
@@ -664,6 +659,8 @@ function removeStructureFromScene() {
 }
 
 function parseAndDrawSkeleton() {
+
+    //Clear when redraw
     removeStructureFromScene()
 
     //Draw column
@@ -671,8 +668,8 @@ function parseAndDrawSkeleton() {
     const verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
     console.log("Num of unique verticalEdge " + verticalEdge.length)
 
-    const displayEdge = verticalEdge.filter(e => e.userData.floorLevel !== 0)
-    displayEdge.forEach(e => drawVEdge(e));
+    const displayColumn = verticalEdge.filter(e => e.userData.floorLevel !== 0)
+    displayColumn.forEach(e => drawVEdge(e));
 
     //Draw face
     const slabs = parseSlabs(jSkeleton)
@@ -689,6 +686,9 @@ function parseAndDrawSkeleton() {
 
     const displayBeams = horizontalEdge.filter(e => e.userData.floorLevel !== 0)
     displayBeams.forEach(e => drawHEdge(e))
+
+    //Update count info
+    updateSkeletonInfo()
 }
 
 init()

@@ -25,6 +25,20 @@
             pointer-events: auto;
         }
 
+        #debugDiv2 {
+            position: absolute;
+            font-family: Arial;
+            font-size: 1em;
+            font-weight: normal;
+            color: crimson;
+            background-color: aliceblue;
+            opacity: 0.8;
+            right: 20px;
+            bottom: 50px;
+            padding-inline-start: 10px;
+            pointer-events: auto;
+        }
+
         #debug1 {
             font-family: monospace;
             font-size: small;
@@ -35,7 +49,8 @@
             pointer-events: auto;
         }
 
-        #tSkeletonSrc, #tResultSrc {
+        #tSkeletonSrc,
+        #tResultSrc {
             position: relative;
             width: 450px;
             height: 50px;
@@ -47,25 +62,28 @@
 <body>
 
     <ul id="debugDiv">
-      
+
         <li>
             <textarea class="content" name="debug" readonly placeholder="Debug Area" id="debug1"></textarea>
         </li>
         <li>
-            <textarea name="tSkeletonSrc" id="tSkeletonSrc"  placeholder="Skeleton scource"></textarea>
+            <textarea name="tSkeletonSrc" id="tSkeletonSrc" placeholder="Skeleton scource"></textarea>
         </li>
         <li>
             <button id="bAddSkeleton">Read Skeleton</button>
         </li>
         <li>
-            <textarea name="tResultSrc" id="tResultSrc"  placeholder="Solved result"></textarea>
+            <textarea name="tResultSrc" id="tResultSrc" placeholder="Solved result"></textarea>
         </li>
         <li>
             <button id="bAddResult">Read Solved Column</button>
         </li>
 
     </ul>
-    <div id="canvas"></div>
+
+    <div id="canvas">
+        <div id="debugDiv2">Skeleton info</div>
+    </div>
     <script type="module" src="bundle.js"></script>
 </body>
 
