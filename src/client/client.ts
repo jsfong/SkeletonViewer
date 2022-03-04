@@ -77,8 +77,8 @@ let beamShowLevel = 'ALL'
 function init() {
     //Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300)
-    camera.position.set(50, 50, 50);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(100, 50, 100);
+    camera.lookAt(20, 0, 20);
 
     //Scene
     scene = new THREE.Scene();
@@ -242,22 +242,23 @@ function onDocumentMouseMove(event: MouseEvent) {
         camera
     );
 
-    intersects = raycaster.intersectObjects(pickableObjects, false);
+    const intersectableObj = pickableObjects.filter(o => o.visible === true);
+    intersects = raycaster.intersectObjects(intersectableObj, false);
     if (intersects.length > 0) {
         intersectObject = intersects[0].object;
     } else {
         intersectObject = null;
     }
 
-    pickableObjects.forEach((o: THREE.Mesh, i) => {
+    intersectableObj.forEach((o: THREE.Mesh, i) => {
         if (intersectObject && intersectObject.uuid === o.uuid) {
-            pickableObjects[i].material = highlightedMaterial;
+            intersectableObj[i].material = highlightedMaterial;
 
         } else {
-            if (currentPickedObject && pickableObjects[i].uuid === currentPickedObject.uuid) {
-                pickableObjects[i].material = selectedMaterial
+            if (currentPickedObject && intersectableObj[i].uuid === currentPickedObject.uuid) {
+                intersectableObj[i].material = selectedMaterial
             } else {
-                pickableObjects[i].material = originalMaterials[o.uuid]
+                intersectableObj[i].material = originalMaterials[o.uuid]
             }
         }
     })
@@ -279,7 +280,8 @@ function onDocumentMouseDown(event: MouseEvent) {
         camera
     );
 
-    intersects = raycaster.intersectObjects(pickableObjects, false);
+    const intersectableObj = pickableObjects.filter(o => o.visible === true);
+    intersects = raycaster.intersectObjects(intersectableObj, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object;
         let position = JSON.stringify({
@@ -299,11 +301,11 @@ function onDocumentMouseDown(event: MouseEvent) {
 
 
     }
-    pickableObjects.forEach((o: THREE.Mesh, i) => {
+    intersectableObj.forEach((o: THREE.Mesh, i) => {
         if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
-            pickableObjects[i].material = selectedMaterial;
+            intersectableObj[i].material = selectedMaterial;
         } else {
-            pickableObjects[i].material = originalMaterials[o.uuid]
+            intersectableObj[i].material = originalMaterials[o.uuid]
         }
     })
 
