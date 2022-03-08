@@ -27,6 +27,7 @@ let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, TH
 //JSON
 let jSkeleton = itypeSkeleton;
 let jOutput = cube8CellsOutputData;
+const DECIMAL_POINT = 6;
 
 //Material
 let normalMaterial = new THREE.MeshLambertMaterial({
@@ -597,9 +598,11 @@ function getUnique(points: any[]) {
 }
 
 function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
+
+    const PRECISION = 1e-8;
     return (
-        (e1[0].equals(e2[0]) && e1[1].equals(e2[1]))
-        || (e1[0].equals(e2[1]) && e1[1].equals(e2[0]))
+        (precise(e1[0]).equals(precise(e2[0])) && precise(e1[1]).equals(precise(e2[1])))
+        || (precise(e1[0]).equals(precise(e2[1])) && precise(e1[1]).equals(precise(e2[0])))
     )
 }
 
@@ -621,6 +624,14 @@ function getOutputDataWithConfig(id: any) {
 
     return JSON.stringify(data, null, 2)
 }
+
+
+function precise(data: Vector3) {
+    return new THREE.Vector3(
+        parseFloat(data.x.toFixed(DECIMAL_POINT)), 
+        parseFloat(data.y.toFixed(DECIMAL_POINT)), 
+        parseFloat(data.z.toFixed(DECIMAL_POINT)));
+  }
 
 //End of - Json parsing
 

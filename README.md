@@ -18,7 +18,16 @@ npm run dev
 npm run build
 ```
 
-Output files will be located at **./dist/client** folder.
+Output folder will be located at **./dist/client** folder.
+
+Use any webserver to  server the file locally. 
+For eg. http-server
+
+```bash
+npm install --global http-server
+```
 
 
-
+```bash
+http-server ./dist/client
+```
