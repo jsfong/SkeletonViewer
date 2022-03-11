@@ -9,10 +9,10 @@ const itypeSkeleton = require("./itypeSkeleton.json");
 const htypeSkeleton = require("./htypeSkeleton.json");
 const outputData = require("./output.json");
 const cube8CellsOutputData = require("./cube8CellsOutput.json");
+const itypeOutput = require("./itypeOutput.json");
 import { GUI } from 'dat.gui'
-import { type } from 'os';
-import { text } from 'stream/consumers';
-import * as e from 'express';
+import { prettyPrintJson, FormatOptions } from 'pretty-print-json';
+const options: FormatOptions = { indent: 2, lineNumbers: false };
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
 let camera: THREE.PerspectiveCamera;
@@ -27,7 +27,7 @@ let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, TH
 
 //JSON
 let jSkeleton = htypeSkeleton;
-let jOutput = cube8CellsOutputData;
+let jOutput = itypeOutput;
 const DECIMAL_POINT = 6;
 
 //Material
@@ -53,7 +53,7 @@ let wireframeObjects: THREE.LineSegments[] = [];
 let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
-const debugDiv = document.getElementById('debug1') as HTMLTextAreaElement
+const debugDiv = document.getElementById('debug1') as HTMLPreElement
 const debugDiv2 = document.getElementById('debugDiv2') as HTMLDivElement
 const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonElement;
 const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
@@ -234,13 +234,13 @@ function readSkeleton(this: HTMLElement, ev: Event) {
 
 function readResult(this: HTMLElement, ev: Event) {
     console.log("Read Result")
-    sendNotification("Parsing result...")
     ev.preventDefault();
 
     if (tResultSrc.value) {
         console.log("Detected Result input")
         jOutput = JSON.parse(tResultSrc.value)
     }
+    sendNotification("Done parsing result")
 }
 
 function updateMaterial() {
@@ -313,20 +313,23 @@ function onDocumentMouseDown(event: MouseEvent) {
     intersects = raycaster.intersectObjects(intersectableObj, false);
     if (intersects.length > 0) {
         currentPickedObject = intersects[0].object;
-        let position = JSON.stringify({
+        let position = {
             x: currentPickedObject.position.x,
             y: currentPickedObject.position.z,
             z: currentPickedObject.position.y
-        });
+        };
 
         if (currentPickedObject.userData.points) {
-            position = JSON.stringify(currentPickedObject.userData.points, null, 2)
+            position = currentPickedObject.userData.points
         }
 
         const id = currentPickedObject.userData.uuid;
         const columnData = getOutputData(id);
         const columnConfig = getOutputDataWithConfig(id);
-        debugDiv.value = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
+        // const data = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
+
+        const data = { ID: id, Position: position, columnData: columnData, columnConfig: columnConfig };
+        debugDiv.innerHTML = prettyPrintJson.toHtml(data, options);
 
 
     }
@@ -649,7 +652,7 @@ function getOutputData(id: any) {
     const x = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
     let data = jsonpath.query(jOutput, x);
 
-    return JSON.stringify(data, null, 2)
+    return data
 }
 
 function getOutputDataWithConfig(id: any) {
@@ -661,7 +664,7 @@ function getOutputDataWithConfig(id: any) {
     const columnConfigJPath = `$.elements[?(@.type == 'columnConfiguration' && @.externalRefId == '${configId}')]`
     let data = jsonpath.query(jOutput, columnConfigJPath)
 
-    return JSON.stringify(data, null, 2)
+   return data
 }
 
 

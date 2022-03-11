@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/pretty-print-json@1.2/dist/pretty-print-json.css>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Column Viewer</title>
@@ -45,8 +47,13 @@
             text-align: left;
             width: 450px;
             height: 600px;
-            color: black;
+            /* color: black; */
             pointer-events: auto;
+        }
+
+        .pre-scrollable {
+            max-height: 600px;
+            overflow-y: scroll;
         }
 
         #tSkeletonSrc,
@@ -144,26 +151,28 @@
             }
         }
     </style>
+
 </head>
 
 <body>
-
     <ul id="debugDiv">
 
         <li>
-            <textarea class="content" name="debug" readonly placeholder="Debug Area" id="debug1"></textarea>
+            <pre id=debug1 class="json-container pre-scrollable"></pre>
         </li>
         <li>
-            <textarea name="tSkeletonSrc" id="tSkeletonSrc" placeholder="Skeleton scource"></textarea>
+            <textarea class="form-control form-control-sm" name="tSkeletonSrc" id="tSkeletonSrc"
+                placeholder="Skeleton scource"></textarea>
         </li>
         <li>
-            <button id="bAddSkeleton">Read Skeleton</button>
+            <button class="btn btn-primary btn-sm" id="bAddSkeleton">Read Skeleton</button>
         </li>
         <li>
-            <textarea name="tResultSrc" id="tResultSrc" placeholder="Solved result"></textarea>
+            <textarea class="form-control form-control-sm" name="tResultSrc" id="tResultSrc"
+                placeholder="Solved result"></textarea>
         </li>
         <li>
-            <button id="bAddResult">Read Solved Column</button>
+            <button class="btn btn-primary btn-sm" id="bAddResult">Read Solved Column</button>
         </li>
 
     </ul>
