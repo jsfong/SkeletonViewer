@@ -6,6 +6,7 @@ import * as jsonpath from 'jsonpath';
 const skeleton = require("./skeleton.json");
 const cube8Cells = require("./cube8Cells.json");
 const itypeSkeleton = require("./itypeSkeleton.json");
+const htypeSkeleton = require("./htypeSkeleton.json");
 const outputData = require("./output.json");
 const cube8CellsOutputData = require("./cube8CellsOutput.json");
 import { GUI } from 'dat.gui'
@@ -25,7 +26,7 @@ let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
 
 //JSON
-let jSkeleton = itypeSkeleton;
+let jSkeleton = htypeSkeleton;
 let jOutput = cube8CellsOutputData;
 const DECIMAL_POINT = 6;
 
