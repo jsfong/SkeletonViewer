@@ -12,6 +12,7 @@ const cube8CellsOutputData = require("./cube8CellsOutput.json");
 const itypeOutput = require("./itypeOutput.json");
 import { GUI } from 'dat.gui'
 import { prettyPrintJson, FormatOptions } from 'pretty-print-json';
+import { emitWarning } from 'process';
 const options: FormatOptions = { indent: 2, lineNumbers: false };
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
@@ -24,6 +25,8 @@ let cube: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.PlaneGeometry, THREE.Me
 let stats: Stats;
 let debugView: HTMLDivElement;
 let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>, rollOverMaterial;
+
+const enum orientation { NS, EW };
 
 //JSON
 let jSkeleton = htypeSkeleton;
@@ -204,7 +207,7 @@ function updateSkeletonInfo() {
 
 function displayWireframe(isDisplay: boolean) {
     wireframeObjects
-    .forEach(w => w.visible = isDisplay)
+        .forEach(w => w.visible = isDisplay)
 }
 
 function sendNotification(msg: string) {
@@ -364,7 +367,8 @@ function drawHEdge(edge: any) {
     let x = Math.abs(p1.x - p2.x);
     let y = Math.abs(p1.y - p2.y);
     let z = Math.abs(p1.z - p2.z);
-
+  
+    const beamOrientation = x > 0 ? orientation.NS : orientation.EW    
     x = x > 0 ? x : EDGE_THICKNESS;
     y = y > 0 ? y : EDGE_THICKNESS;
     z = z > 0 ? z : EDGE_THICKNESS;
@@ -377,6 +381,14 @@ function drawHEdge(edge: any) {
     cube.position.setX(Math.min(p1.x, p2.x) + x / 2);
     cube.position.setY(Math.min(p1.y, p2.y) - y / 2);
     cube.position.setZ(Math.min(p1.z, p2.z) + z / 2);
+
+    if(beamOrientation === orientation.NS) {
+        cube.position.setZ(cube.position.z - (EDGE_THICKNESS/2))
+    }
+
+    if(beamOrientation === orientation.EW) {
+        cube.position.setX(cube.position.x - (EDGE_THICKNESS/2))
+    }
     cube.userData = edge.userData
     scene.add(cube)
     pickableObjects.push(cube);
@@ -664,7 +676,7 @@ function getOutputDataWithConfig(id: any) {
     const columnConfigJPath = `$.elements[?(@.type == 'columnConfiguration' && @.externalRefId == '${configId}')]`
     let data = jsonpath.query(jOutput, columnConfigJPath)
 
-   return data
+    return data
 }
 
 
