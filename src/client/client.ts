@@ -42,11 +42,14 @@ const highlightedMaterial = new THREE.MeshBasicMaterial({
 const selectedMaterial = new THREE.MeshNormalMaterial({
     side: THREE.DoubleSide
 })
+const wireFrameMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 4 })
+
 
 //Picking Config
 let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
 let pickableObjects: THREE.Mesh[] = [];
+let wireframeObjects: THREE.LineSegments[] = [];
 let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
@@ -69,6 +72,7 @@ var settings = {
     floorLevelToDraw: 'ALL',
     columnLevelToDraw: 'ALL',
     beamLevelToDraw: 'ALL',
+    showFaceWireframe: false
 };
 
 //Skeleton Config
@@ -184,6 +188,9 @@ function initGUI() {
         beamShowLevel = value
         updateStructureInScene('beam')
     });
+    levelFolder.add(settings, 'showFaceWireframe').onChange((value) => {
+        displayWireframe(value)
+    })
     levelFolder.open()
 
 }
@@ -193,6 +200,11 @@ function updateSkeletonInfo() {
     const beamCount = pickableObjects.filter(o => o.userData.type === 'beam').filter(o => o.visible === true).length
     const columnCount = pickableObjects.filter(o => o.userData.type === 'column').filter(o => o.visible === true).length
     debugDiv2.innerText = `Slab : ${slabCount}\nBeam : ${beamCount}\nColumn : ${columnCount}`
+}
+
+function displayWireframe(isDisplay: boolean) {
+    wireframeObjects
+    .forEach(w => w.visible = isDisplay)
 }
 
 function sendNotification(msg: string) {
@@ -404,13 +416,12 @@ function drawFace(face: any) {
 
     const [firstP, ...restOfP] = points
 
+    //draw shape
     const triangleShape = new THREE.Shape();
     triangleShape.moveTo(firstP.x, firstP.z);
     restOfP.forEach((p: { x: number; z: number; }) => triangleShape.lineTo(p.x, p.z))
     triangleShape.lineTo(firstP.x, firstP.z); // close path
 
-    // const extrudeSettings = { depth: 1, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 1, bevelThickness: 1 };
-    // const tri = new THREE.ExtrudeGeometry(triangleShape, extrudeSettings);
     const tri = new THREE.ShapeBufferGeometry(triangleShape);
     let material = normalMaterial
     material.side = THREE.DoubleSide
@@ -422,6 +433,18 @@ function drawFace(face: any) {
     scene.add(trimesh)
     pickableObjects.push(trimesh);
     originalMaterials[trimesh.uuid] = trimesh.material;
+
+    //draw wireframe
+    const geo = new THREE.EdgesGeometry(trimesh.geometry);
+    const wireframe = new THREE.LineSegments(geo, wireFrameMaterial);
+    wireframe.renderOrder = 1;
+
+    wireframe.rotateX(Math.PI / 2);
+    wireframe.position.setY(firstP.y);
+    wireframe.visible = (settings.showFaceWireframe) ? true : false
+    scene.add(wireframe);
+    wireframeObjects.push(wireframe);
+
 
 }
 
@@ -685,6 +708,7 @@ function updateStructureInScene(typeToUpdate: any) {
 function removeStructureFromScene() {
     pickableObjects.forEach(obj => scene.remove(obj))
     pickableObjects = []
+    wireframeObjects = []
 }
 
 function parseAndDrawSkeleton() {
