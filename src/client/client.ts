@@ -56,6 +56,8 @@ const bReadSkeleton = document.getElementById('bAddSkeleton') as HTMLButtonEleme
 const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElement;
 const bReadResult = document.getElementById('bAddResult') as HTMLButtonElement;
 const tResultSrc = document.getElementById('tResultSrc') as HTMLTextAreaElement;
+const snackbar = document.getElementById('snackbar') as HTMLDivElement;
+let timer: NodeJS.Timeout;
 
 //GUI
 const gui = new GUI()
@@ -193,21 +195,34 @@ function updateSkeletonInfo() {
     debugDiv2.innerText = `Slab : ${slabCount}\nBeam : ${beamCount}\nColumn : ${columnCount}`
 }
 
+function sendNotification(msg: string) {
+    clearTimeout(timer)
+    snackbar.innerText = msg
+    snackbar.className = "show"
+    timer = setTimeout(() => {
+        snackbar.className = snackbar.className.replace("show", "")
+    }, 3000);
+
+}
+
 function readSkeleton(this: HTMLElement, ev: Event) {
     console.log("Read Skeleton")
+    sendNotification("Reading Skeleton...")
     ev.preventDefault();
-
     if (tSkeletonSrc.value) {
         console.log("Detected skeleton input")
         jSkeleton = JSON.parse(tSkeletonSrc.value)
     }
 
-    console.log("Redrawing Skeleton ..")
+    console.log("Redrawing Skeleton..")
+    sendNotification("Drawing Skeleton...")
     parseAndDrawSkeleton();
+
 }
 
 function readResult(this: HTMLElement, ev: Event) {
     console.log("Read Result")
+    sendNotification("Parsing result...")
     ev.preventDefault();
 
     if (tResultSrc.value) {
@@ -629,10 +644,10 @@ function getOutputDataWithConfig(id: any) {
 
 function precise(data: Vector3) {
     return new THREE.Vector3(
-        parseFloat(data.x.toFixed(DECIMAL_POINT)), 
-        parseFloat(data.y.toFixed(DECIMAL_POINT)), 
+        parseFloat(data.x.toFixed(DECIMAL_POINT)),
+        parseFloat(data.y.toFixed(DECIMAL_POINT)),
         parseFloat(data.z.toFixed(DECIMAL_POINT)));
-  }
+}
 
 //End of - Json parsing
 
