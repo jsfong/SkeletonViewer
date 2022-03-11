@@ -45,7 +45,7 @@ const highlightedMaterial = new THREE.MeshBasicMaterial({
 const selectedMaterial = new THREE.MeshNormalMaterial({
     side: THREE.DoubleSide
 })
-const wireFrameMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 4 })
+const wireFrameMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
 
 
 //Picking Config
@@ -192,7 +192,7 @@ function initGUI() {
         updateStructureInScene('beam')
     });
     levelFolder.add(settings, 'showFaceWireframe').onChange((value) => {
-        displayWireframe(value)
+        displayWireframe()
     })
     levelFolder.open()
 
@@ -205,9 +205,18 @@ function updateSkeletonInfo() {
     debugDiv2.innerText = `Slab : ${slabCount}\nBeam : ${beamCount}\nColumn : ${columnCount}`
 }
 
-function displayWireframe(isDisplay: boolean) {
-    wireframeObjects
-        .forEach(w => w.visible = isDisplay)
+function displayWireframe() {
+
+    if (settings.showFaceWireframe) {
+        const objsToDisplay = wireframeObjects.filter(e => (settings.floorLevelToDraw === 'ALL' ? true : e.userData.floorLevel == slabShowLevel))
+        const objsToNotDisplay =  wireframeObjects.filter(e => (settings.floorLevelToDraw === 'ALL' ? false : e.userData.floorLevel != slabShowLevel))
+        objsToDisplay.forEach(w => w.visible = true)
+        objsToNotDisplay.forEach(w => w.visible = false)
+
+    } else {
+        wireframeObjects.forEach(w => w.visible = false)
+    }
+
 }
 
 function sendNotification(msg: string) {
@@ -367,8 +376,8 @@ function drawHEdge(edge: any) {
     let x = Math.abs(p1.x - p2.x);
     let y = Math.abs(p1.y - p2.y);
     let z = Math.abs(p1.z - p2.z);
-  
-    const beamOrientation = x > 0 ? orientation.NS : orientation.EW    
+
+    const beamOrientation = x > 0 ? orientation.NS : orientation.EW
     x = x > 0 ? x : EDGE_THICKNESS;
     y = y > 0 ? y : EDGE_THICKNESS;
     z = z > 0 ? z : EDGE_THICKNESS;
@@ -382,12 +391,12 @@ function drawHEdge(edge: any) {
     cube.position.setY(Math.min(p1.y, p2.y) - y / 2);
     cube.position.setZ(Math.min(p1.z, p2.z) + z / 2);
 
-    if(beamOrientation === orientation.NS) {
-        cube.position.setZ(cube.position.z - (EDGE_THICKNESS/2))
+    if (beamOrientation === orientation.NS) {
+        cube.position.setZ(cube.position.z - (EDGE_THICKNESS / 2))
     }
 
-    if(beamOrientation === orientation.EW) {
-        cube.position.setX(cube.position.x - (EDGE_THICKNESS/2))
+    if (beamOrientation === orientation.EW) {
+        cube.position.setX(cube.position.x - (EDGE_THICKNESS / 2))
     }
     cube.userData = edge.userData
     scene.add(cube)
@@ -457,6 +466,7 @@ function drawFace(face: any) {
     wireframe.rotateX(Math.PI / 2);
     wireframe.position.setY(firstP.y);
     wireframe.visible = (settings.showFaceWireframe) ? true : false
+    wireframe.userData = face.userData
     scene.add(wireframe);
     wireframeObjects.push(wireframe);
 
@@ -717,6 +727,7 @@ function updateStructureInScene(typeToUpdate: any) {
         obj.visible = true
     })
 
+    displayWireframe()
     updateSkeletonInfo()
 }
 
