@@ -398,6 +398,10 @@ function drawHEdge(edge: any) {
     let y = Math.abs(p1.y - p2.y);
     let z = Math.abs(p1.z - p2.z);
 
+    x = Math.round(x * 1e2) / 1e2
+    y = Math.round(y * 1e2) / 1e2
+    z = Math.round(z * 1e2) / 1e2
+
     const beamOrientation = x > 0 ? orientation.NS : orientation.EW
     x = x > 0 ? x : EDGE_THICKNESS;
     y = y > 0 ? y : EDGE_THICKNESS;
