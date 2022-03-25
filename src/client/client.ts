@@ -63,6 +63,8 @@ const tSkeletonSrc = document.getElementById('tSkeletonSrc') as HTMLTextAreaElem
 const bReadResult = document.getElementById('bAddResult') as HTMLButtonElement;
 const tResultSrc = document.getElementById('tResultSrc') as HTMLTextAreaElement;
 const snackbar = document.getElementById('snackbar') as HTMLDivElement;
+const tOutputSrc = document.getElementById('tOutputSrc') as HTMLTextAreaElement;
+const bAddOutput = document.getElementById('bAddOutput') as HTMLButtonElement;
 let timer: NodeJS.Timeout;
 
 //GUI
@@ -141,6 +143,7 @@ function init() {
 
     bReadSkeleton.addEventListener("click", readSkeleton, false);
     bReadResult.addEventListener("click", readResult, false);
+    bAddOutput.addEventListener("click", readOutput, false);
     tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
     tResultSrc.value = JSON.stringify(jOutput, null, 2);
 }
@@ -209,7 +212,7 @@ function displayWireframe() {
 
     if (settings.showFaceWireframe) {
         const objsToDisplay = wireframeObjects.filter(e => (settings.floorLevelToDraw === 'ALL' ? true : e.userData.floorLevel == slabShowLevel))
-        const objsToNotDisplay =  wireframeObjects.filter(e => (settings.floorLevelToDraw === 'ALL' ? false : e.userData.floorLevel != slabShowLevel))
+        const objsToNotDisplay = wireframeObjects.filter(e => (settings.floorLevelToDraw === 'ALL' ? false : e.userData.floorLevel != slabShowLevel))
         objsToDisplay.forEach(w => w.visible = true)
         objsToNotDisplay.forEach(w => w.visible = false)
 
@@ -227,6 +230,23 @@ function sendNotification(msg: string) {
         snackbar.className = snackbar.className.replace("show", "")
     }, 3000);
 
+}
+
+function readOutput(this: HTMLElement, ev: Event) {
+    console.log("Read Output")
+    sendNotification("Reading Output...")
+    ev.preventDefault();
+    if (tOutputSrc.value) {
+        jOutput = JSON.parse(tOutputSrc.value)
+        const jElement: any[] = jOutput.data.elements;
+        jSkeleton = jElement.find(e => e.type === "skeleton").attributes
+
+        console.log(jSkeleton)
+        console.log("Drawing Skeleton..")
+        sendNotification("Drawing Skeleton...")
+        parseAndDrawSkeleton();
+        sendNotification("Done")
+    }
 }
 
 function readSkeleton(this: HTMLElement, ev: Event) {
@@ -336,11 +356,12 @@ function onDocumentMouseDown(event: MouseEvent) {
         }
 
         const id = currentPickedObject.userData.uuid;
+        const dimension = currentPickedObject.userData.dimension;
         const columnData = getOutputData(id);
         const columnConfig = getOutputDataWithConfig(id);
         // const data = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
 
-        const data = { ID: id, Position: position, columnData: columnData, columnConfig: columnConfig };
+        const data = { ID: id, Position: position, Dimension: dimension, columnData: columnData, columnConfig: columnConfig };
         debugDiv.innerHTML = prettyPrintJson.toHtml(data, options);
 
 
@@ -493,7 +514,12 @@ function parseEdges(data: any) {
                 type: type,
                 uuid: uuid,
                 floorLevel: floorLevel,
-                points: [vStart, vEnd]
+                points: [vStart, vEnd],
+                dimension: {
+                    x: Math.abs(vStart.x - vEnd.x),
+                    y: Math.abs(vStart.y - vEnd.y),
+                    z: Math.abs(vStart.z - vEnd.z)
+                }
             },
             vertex: [vStart, vEnd]
         }
@@ -671,7 +697,7 @@ function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
 }
 
 function getOutputData(id: any) {
-    const x = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
+    const x = `$.data.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
     let data = jsonpath.query(jOutput, x);
 
     return data

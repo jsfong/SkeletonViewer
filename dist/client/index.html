@@ -56,6 +56,10 @@
             overflow-y: scroll;
         }
 
+        .hidden {
+            visibility: hidden;
+        }
+
         #tSkeletonSrc,
         #tResultSrc {
             position: relative;
@@ -160,18 +164,26 @@
         <li>
             <pre id=debug1 class="json-container pre-scrollable"></pre>
         </li>
-        <li>
-            <textarea class="form-control form-control-sm" name="tSkeletonSrc" id="tSkeletonSrc"
-                placeholder="Skeleton scource"></textarea>
+        <li >
+            <textarea class="form-control form-control-sm" name="tOutputSrc" id="tOutputSrc"
+                placeholder="Output source"></textarea>
         </li>
-        <li>
+        <li >
+            <button class="btn btn-primary btn-sm" id="bAddOutput">Read Output</button>
+        </li>
+
+        <li class="hidden">
+            <textarea class="form-control form-control-sm" name="tSkeletonSrc" id="tSkeletonSrc"
+                placeholder="Skeleton source"></textarea>
+        </li>
+        <li class="hidden">
             <button class="btn btn-primary btn-sm" id="bAddSkeleton">Read Skeleton</button>
         </li>
-        <li>
+        <li class="hidden">
             <textarea class="form-control form-control-sm" name="tResultSrc" id="tResultSrc"
                 placeholder="Solved result"></textarea>
         </li>
-        <li>
+        <li class="hidden">
             <button class="btn btn-primary btn-sm" id="bAddResult">Read Solved Column</button>
         </li>
 
