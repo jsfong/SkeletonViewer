@@ -154,6 +154,10 @@
                 opacity: 0;
             }
         }
+
+        #customFile {
+            margin-top: 10px;
+        }
     </style>
 
 </head>
@@ -164,12 +168,16 @@
         <li>
             <pre id=debug1 class="json-container pre-scrollable"></pre>
         </li>
-        <li >
+        <li>
             <textarea class="form-control form-control-sm" name="tOutputSrc" id="tOutputSrc"
                 placeholder="Output source"></textarea>
         </li>
-        <li >
+        <li>
             <button class="btn btn-primary btn-sm" id="bAddOutput">Read Output</button>
+        </li>
+
+        <li>
+            <input type="file" class="form-control" id="customFile" />
         </li>
 
         <li class="hidden">

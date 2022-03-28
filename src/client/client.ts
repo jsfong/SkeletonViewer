@@ -65,6 +65,7 @@ const tResultSrc = document.getElementById('tResultSrc') as HTMLTextAreaElement;
 const snackbar = document.getElementById('snackbar') as HTMLDivElement;
 const tOutputSrc = document.getElementById('tOutputSrc') as HTMLTextAreaElement;
 const bAddOutput = document.getElementById('bAddOutput') as HTMLButtonElement;
+const inputFile = document.getElementById("customFile") as HTMLInputElement;
 let timer: NodeJS.Timeout;
 
 //GUI
@@ -146,6 +147,7 @@ function init() {
     bAddOutput.addEventListener("click", readOutput, false);
     tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
     tResultSrc.value = JSON.stringify(jOutput, null, 2);
+    inputFile.addEventListener("change", handleFiles, false);
 }
 
 function initGUI() {
@@ -273,6 +275,32 @@ function readResult(this: HTMLElement, ev: Event) {
         jOutput = JSON.parse(tResultSrc.value)
     }
     sendNotification("Done parsing result")
+}
+
+function handleFiles(this: HTMLElement, ev: Event) {
+    console.log("handleFiles")
+    let files = (ev.target as HTMLInputElement).files;
+    if (files) {
+        let file = files[0]
+
+        const reader = new FileReader();
+        reader.addEventListener('load', (event) => {
+            const result = event.target?.result;
+            if (typeof result === 'string') {
+                const json = atob(result.substring(29));
+                jOutput = JSON.parse(json);
+                const jElement: any[] = jOutput.data.elements;
+                jSkeleton = jElement.find(e => e.type === "skeleton").attributes
+              
+                parseAndDrawSkeleton();
+                sendNotification("Done")
+            }
+
+        })
+
+        reader.readAsDataURL(file);
+        sendNotification("Drawing Skeleton...")
+    }
 }
 
 function updateMaterial() {
