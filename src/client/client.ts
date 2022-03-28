@@ -357,11 +357,11 @@ function onDocumentMouseDown(event: MouseEvent) {
 
         const id = currentPickedObject.userData.uuid;
         const dimension = currentPickedObject.userData.dimension;
-        const columnData = getOutputData(id);
+        const structuralData = getOutputData(id);
         const columnConfig = getOutputDataWithConfig(id);
         // const data = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
 
-        const data = { ID: id, Position: position, Dimension: dimension, columnData: columnData, columnConfig: columnConfig };
+        const data = { ID: id, Position: position, Dimension: dimension, structuralData: structuralData, columnConfig: columnConfig };
         debugDiv.innerHTML = prettyPrintJson.toHtml(data, options);
 
 
@@ -701,10 +701,14 @@ function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
 }
 
 function getOutputData(id: any) {
-    const x = `$.data.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
-    let data = jsonpath.query(jOutput, x);
+    // const x = `$.data.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
+    const edge = `$.data.elements[?(@.attributes.edgeId == '${id}')]`
+    const face = `$.data.elements[?(@.attributes.faceId == '${id}')]`
+    let edgeData = jsonpath.query(jOutput, edge);
+    let faceData = jsonpath.query(jOutput, face);
 
-    return data
+
+    return edgeData.concat(faceData)
 }
 
 function getOutputDataWithConfig(id: any) {
