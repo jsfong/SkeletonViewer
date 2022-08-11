@@ -3,16 +3,15 @@ import { Vector3 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import * as jsonpath from 'jsonpath';
-const skeleton = require("./skeleton.json");
-const cube8Cells = require("./cube8Cells.json");
-const itypeSkeleton = require("./itypeSkeleton.json");
 const htypeSkeleton = require("./htypeSkeleton.json");
-const outputData = require("./output.json");
-const cube8CellsOutputData = require("./cube8CellsOutput.json");
 const itypeOutput = require("./itypeOutput.json");
 import { GUI } from 'dat.gui'
 import { prettyPrintJson, FormatOptions } from 'pretty-print-json';
 import { emitWarning } from 'process';
+import * as Parser from "./skeletonParser";
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
+
 const options: FormatOptions = { indent: 2, lineNumbers: false };
 
 const canvas = document.getElementById('canvas') as HTMLDivElement
@@ -28,16 +27,32 @@ let rollOverMesh: THREE.Object3D<THREE.Event> | THREE.Mesh<THREE.BoxGeometry, TH
 
 const enum orientation { NS, EW };
 
+//Font
+var font;
+var loader = new FontLoader();
+loader.load('path/to/fontfile.js', function (response) {
+    font = response;
+});
+
+
 //JSON
 let jSkeleton = htypeSkeleton;
+let jSkeleton2 = htypeSkeleton;
 let jOutput = itypeOutput;
-const DECIMAL_POINT = 6;
 
 //Material
 let normalMaterial = new THREE.MeshLambertMaterial({
     color: 0x939393,
     emissive: 0x2d2d2d
 });
+
+let panelMaterial = new THREE.MeshLambertMaterial({
+    color: 0x049ef4,
+    emissive: 0x2d2d2d,
+    transparent: true,
+    opacity: 0.7
+});
+
 const highlightedMaterial = new THREE.MeshBasicMaterial({
     wireframe: true,
     color: 0x00ff00
@@ -53,6 +68,7 @@ let raycaster: THREE.Raycaster;
 let intersects: THREE.Intersection[]
 let pickableObjects: THREE.Mesh[] = [];
 let wireframeObjects: THREE.LineSegments[] = [];
+let panelWireframeObjects: THREE.LineSegments[] = [];
 let currentPickedObject: THREE.Object3D | THREE.Mesh | any | null;
 let intersectObject: THREE.Object3D | null;
 const originalMaterials: { [id: string]: THREE.Material | THREE.Material[] } = {}
@@ -78,14 +94,21 @@ var settings = {
     floorLevelToDraw: 'ALL',
     columnLevelToDraw: 'ALL',
     beamLevelToDraw: 'ALL',
-    showFaceWireframe: false
+    columnColumnConnectorLevelToDraw: 'NONE',
+    plateLevelToDraw: 'NONE',
+    showFaceWireframe: false,
+    showPanelWireframe: false
 };
 
 //Skeleton Config
 const EDGE_THICKNESS = 1
+const CONNECTOR_THICKNESS = 2
+const PLATE_OFFSET = 0.2
 let columnShowLevel = 'ALL'
 let slabShowLevel = 'ALL'
 let beamShowLevel = 'ALL'
+let colColConShowLevel = 'NONE'
+let plateShowLevel = 'NONE'
 
 //ThreeJs Drawing 
 function init() {
@@ -113,15 +136,19 @@ function init() {
     stats = Stats()
     canvas.appendChild(stats.dom)
 
+    // Axes Helper
+    const axesHelper = new THREE.AxesHelper(50);
+    scene.add(axesHelper);
+
     //Raycaster
     raycaster = new THREE.Raycaster();
 
     //Grid
-    const gridHelper = new THREE.GridHelper(1000, 1000, 0x444444, 0x888888);
+    const gridHelper = new THREE.GridHelper(2000, 2000, 0x444444, 0x888888);
     scene.add(gridHelper);
 
     //Plane
-    const geometry = new THREE.PlaneBufferGeometry(1000, 1000);
+    const geometry = new THREE.PlaneBufferGeometry(2000, 2000);
     geometry.rotateX(- Math.PI / 2);
     plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     plane.name = "floor";
@@ -129,8 +156,6 @@ function init() {
 
     //Debug view
     debugView = document.getElementById('debug1') as HTMLDivElement
-    //  debugView.innerText = 'Matrix\n' + dot.matrix.elements.toString().replace(/,/g, '\n')
-
 
     //Orbit control
     new OrbitControls(camera, renderer.domElement)
@@ -145,9 +170,9 @@ function init() {
     bReadSkeleton.addEventListener("click", readSkeleton, false);
     bReadResult.addEventListener("click", readResult, false);
     bAddOutput.addEventListener("click", readOutput, false);
-    tSkeletonSrc.value = JSON.stringify(jSkeleton, null, 2);
-    tResultSrc.value = JSON.stringify(jOutput, null, 2);
+    tOutputSrc.value = JSON.stringify(jOutput, null, 2);
     inputFile.addEventListener("change", handleFiles, false);
+
 }
 
 function initGUI() {
@@ -186,7 +211,7 @@ function initGUI() {
     const levelFolder = gui.addFolder('Level')
     levelFolder.add(settings, 'floorLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
         slabShowLevel = value
-        updateStructureInScene('slab')
+        updateStructureInScene('face')
     });
     levelFolder.add(settings, 'columnLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
         columnShowLevel = value
@@ -196,18 +221,32 @@ function initGUI() {
         beamShowLevel = value
         updateStructureInScene('beam')
     });
+    levelFolder.add(settings, 'columnColumnConnectorLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
+        colColConShowLevel = value
+        updateStructureInScene('columnColumnConnector')
+    });
+    levelFolder.add(settings, 'plateLevelToDraw', ['ALL', '1', '2', '3', '4', '5', 'NONE']).onChange((value) => {
+        plateShowLevel = value
+        updateStructureInScene('plate')
+    });
     levelFolder.add(settings, 'showFaceWireframe').onChange((value) => {
         displayWireframe()
+    });
+    levelFolder.add(settings, 'showPanelWireframe').onChange((value) => {
+        displayPanelWireframe()
     })
+
     levelFolder.open()
 
 }
 
 function updateSkeletonInfo() {
-    const slabCount = pickableObjects.filter(o => o.userData.type === 'slab').filter(o => o.visible === true).length
+    const slabCount = pickableObjects.filter(o => o.userData.type === 'face').filter(o => o.visible === true).length
     const beamCount = pickableObjects.filter(o => o.userData.type === 'beam').filter(o => o.visible === true).length
     const columnCount = pickableObjects.filter(o => o.userData.type === 'column').filter(o => o.visible === true).length
-    debugDiv2.innerText = `Slab : ${slabCount}\nBeam : ${beamCount}\nColumn : ${columnCount}`
+    const plateCount = pickableObjects.filter(o => o.userData.type === 'plate').filter(o => o.visible === true).length
+    const columnColumnConnectorCount = pickableObjects.filter(o => o.userData.type === 'columnColumnConnector').filter(o => o.visible === true).length
+    debugDiv2.innerText = `Excluding ground floor\nFace : ${slabCount}\nBeam : ${beamCount}\nPlate: ${plateCount}\nColumn : ${columnCount}\nColumnColumnConnector: ${columnColumnConnectorCount}`
 }
 
 function displayWireframe() {
@@ -220,6 +259,20 @@ function displayWireframe() {
 
     } else {
         wireframeObjects.forEach(w => w.visible = false)
+    }
+
+}
+
+function displayPanelWireframe() {
+
+    if (settings.showPanelWireframe) {
+        const objsToDisplay = panelWireframeObjects.filter(e => (settings.plateLevelToDraw === 'ALL' ? true : e.userData.floorLevel == plateShowLevel))
+        const objsToNotDisplay = panelWireframeObjects.filter(e => (settings.plateLevelToDraw === 'ALL' ? false : e.userData.floorLevel != plateShowLevel))
+        objsToDisplay.forEach(w => w.visible = true)
+        objsToNotDisplay.forEach(w => w.visible = false)
+
+    } else {
+        panelWireframeObjects.forEach(w => w.visible = false)
     }
 
 }
@@ -246,7 +299,7 @@ function readOutput(this: HTMLElement, ev: Event) {
         console.log(jSkeleton)
         console.log("Drawing Skeleton..")
         sendNotification("Drawing Skeleton...")
-        parseAndDrawSkeleton();
+        parseAndDrawSkeleton(jSkeleton);
         sendNotification("Done")
     }
 }
@@ -262,7 +315,7 @@ function readSkeleton(this: HTMLElement, ev: Event) {
 
     console.log("Redrawing Skeleton..")
     sendNotification("Drawing Skeleton...")
-    parseAndDrawSkeleton();
+    parseAndDrawSkeleton(jSkeleton);
 
 }
 
@@ -291,8 +344,10 @@ function handleFiles(this: HTMLElement, ev: Event) {
                 jOutput = JSON.parse(json);
                 const jElement: any[] = jOutput.data.elements;
                 jSkeleton = jElement.find(e => e.type === "skeleton").attributes
-              
-                parseAndDrawSkeleton();
+                jSkeleton2 = jElement.find(e => e.type === "skeletonForRender").attributes
+
+                parseAndDrawSkeleton(jSkeleton);
+                parseAndDrawSkeleton(jSkeleton2, false);
                 sendNotification("Done")
             }
 
@@ -369,6 +424,11 @@ function onDocumentMouseDown(event: MouseEvent) {
         camera
     );
 
+    let structuralData: any;
+    let slabData: any;
+    let faceData: any;
+    let connectorData: any;
+
     const intersectableObj = pickableObjects.filter(o => o.visible === true);
     intersects = raycaster.intersectObjects(intersectableObj, false);
     if (intersects.length > 0) {
@@ -383,24 +443,65 @@ function onDocumentMouseDown(event: MouseEvent) {
             position = currentPickedObject.userData.points
         }
 
+        const type = currentPickedObject.userData.type;
         const id = currentPickedObject.userData.uuid;
         const dimension = currentPickedObject.userData.dimension;
-        const structuralData = getOutputData(id);
-        const columnConfig = getOutputDataWithConfig(id);
-        // const data = `ID: ${id} \nPosition: ${position} \n${columnData}\n${columnConfig}`;
 
-        const data = { ID: id, Position: position, Dimension: dimension, structuralData: structuralData, columnConfig: columnConfig };
+        // let structuralData = Parser.getOutputData(jOutput, id);
+        // let columnConfig = Parser.getOutputDataWithConfig(jOutput, id);
+        // const connectorData = Parser.getOutputConnectorData(jOutput, id);        
+
+        switch (type) {
+            case 'column':
+                structuralData = Parser.getOutputData(jOutput, id);
+                break;
+            case 'columnColumnConnector':
+                structuralData = Parser.getOutputConnectorData(jOutput, id);
+                break;
+            case 'plate':
+                slabData = Parser.getSlabOutputData(jOutput, id);
+                faceData = Parser.getFaceOutputData(jOutput, id);
+
+                const slabBeamConnector = Parser.getSlabBeamConnectorOutput(jOutput, slabData[0].id);
+                connectorData = {
+                    Num: slabBeamConnector.filter(o => o).length,
+                    slabBeamConnector: slabBeamConnector
+                }
+
+                break;
+            default:
+                structuralData = Parser.getOutputData(jOutput, id);
+        }
+
+        let data = { Type: type, ID: id, Position: position, Dimension: dimension, connectorData: connectorData, structuralData: structuralData, slabData: slabData, faceData: faceData };
         debugDiv.innerHTML = prettyPrintJson.toHtml(data, options);
 
+        //Highlight selected obj
+        intersectableObj.forEach((o: THREE.Mesh, i) => {
+            if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
+                intersectableObj[i].material = selectedMaterial;
+            } else {
+                intersectableObj[i].material = originalMaterials[o.uuid]
+            }
+        })
+
+        //Highlight connected slab Beam 
+        if (currentPickedObject.userData.type === 'plate') {
+            //Get array of connected beamEdgeId
+            const connectedBeamEdgeId = connectorData.slabBeamConnector.map((c: { beamEdgeId: any; }) => c.beamEdgeId)
+            connectedBeamEdgeId.forEach((id: any) => {
+                intersectableObj.forEach((o: THREE.Mesh, i) => {
+                    if (o.userData.uuid == id) {
+                        intersectableObj[i].material = selectedMaterial;
+                    }
+                })
+            })
+        }
 
     }
-    intersectableObj.forEach((o: THREE.Mesh, i) => {
-        if (currentPickedObject && currentPickedObject.uuid === o.uuid) {
-            intersectableObj[i].material = selectedMaterial;
-        } else {
-            intersectableObj[i].material = originalMaterials[o.uuid]
-        }
-    })
+
+
+
 
     render()
 }
@@ -526,240 +627,65 @@ function drawFace(face: any) {
 
 }
 
-//End of - ThreeJs Drawing 
+function drawPlate(plate: any) {
 
-//Json parsing
-function parseEdges(data: any) {
-    const x = "$.cellComplex.cells.*.faces.*.edges.*";
-    let edges = jsonpath.query(data, x);
-    console.log("Num of edges " + edges.length)
+    const points = plate.userData.points;
+    const [firstP, ...restOfP] = points
 
-    let vEdges = edges.map(e => {
-        const uuid = e.uuid;
-        let vStart = new THREE.Vector3(e.start.x, e.start.z, e.start.y);
-        let vEnd = new THREE.Vector3(e.end.x, e.end.z, e.end.y);
-        const isVertical = isVertexsVertical([vStart, vEnd])
-        let type = isVertical ? 'column' : 'beam';
-        let floorLevel = isVertical ? Math.max(e.start.floor, e.end.floor) : e.start.floor;
-        return {
-            userData: {
-                type: type,
-                uuid: uuid,
-                floorLevel: floorLevel,
-                points: [vStart, vEnd],
-                dimension: {
-                    x: Math.abs(vStart.x - vEnd.x),
-                    y: Math.abs(vStart.y - vEnd.y),
-                    z: Math.abs(vStart.z - vEnd.z)
-                }
-            },
-            vertex: [vStart, vEnd]
-        }
-    });
+    //draw shape
+    const triangleShape = new THREE.Shape();
+    triangleShape.moveTo(firstP.x, firstP.y);
+    restOfP.forEach((p: { x: number; y: number; }) => triangleShape.lineTo(p.x, p.y))
 
-    return vEdges;
-}
+    const tri = new THREE.ShapeBufferGeometry(triangleShape);
+    let material = panelMaterial
+    material.side = THREE.DoubleSide
+    const trimesh = new THREE.Mesh(tri, material);
+    trimesh.userData = plate.userData
 
-function parseSlabs(data: any) {
+    trimesh.rotateX(Math.PI / 2)
+    trimesh.position.setY(firstP.z + PLATE_OFFSET);
+    trimesh.renderOrder = 2;
+    scene.add(trimesh)
+    pickableObjects.push(trimesh);
+    originalMaterials[trimesh.uuid] = trimesh.material;
 
-    const x = "$.cellComplex.cells.*.faces.*";
-    let faces = jsonpath.query(data, x);
+    //draw wireframe
+    const geo = new THREE.EdgesGeometry(trimesh.geometry);
+    const wireframe = new THREE.LineSegments(geo, wireFrameMaterial);
+    wireframe.renderOrder = 3;
 
-    console.log("Number of face " + faces.length)
-    const vFaces = faces.filter(f => getFaceFloorNum(f).length == 1);
-
-    const slabs = vFaces.map(f => {
-        const [floorLevel] = getFaceFloorNum(f);
-        const uuid = f.uuid;
-        const vertexs = getSlabVertex(f)
-        return {
-            userData: {
-                type: "slab",
-                uuid: uuid,
-                floorLevel: floorLevel,
-                points: vertexs
-            },
-            vertex: vertexs
-        }
-    });
-
-    return slabs;
-}
-
-function isSameFace(f1: Vector3[], f2: Vector3[]) {
-    if (f1 === f2) return true;
-    if (f1 == null || f2 == null) return false;
-    if (f1.length !== f2.length) return false;
-
-    const oF1 = f1.sort()
-    const oF2 = f2.sort()
-
-    for (var i = 0; i < f1.length; ++i) {
-        if (!oF1[i].equals(oF2[i])) return false;
-    }
-    return true;
+    wireframe.rotateX(Math.PI / 2);
+    wireframe.position.setY(firstP.z + PLATE_OFFSET);
+    wireframe.visible = (settings.showPanelWireframe) ? true : false
+    wireframe.userData = plate.userData
+    scene.add(wireframe);
+    panelWireframeObjects.push(wireframe);
 
 }
 
-function getUniqueFace(faces: any[]) {
-    let output: any[] = [];
+function drawCCConnector(edgeUserData: any) {
+    const p1 = edgeUserData.points[0];
 
-    faces.forEach(f => {
+    let x = Math.abs(p1.x);
+    let y = Math.abs(p1.y);
+    let z = Math.abs(p1.z);
 
-        let found = output.find(o => {
-            return isSameFace(f.vertex, o.vertex)
-        })
-        if (!found) {
-            output.push(f);
-        }
-    })
+    const geometry = new THREE.BoxBufferGeometry(CONNECTOR_THICKNESS, CONNECTOR_THICKNESS, CONNECTOR_THICKNESS)
+    const material = normalMaterial
+    const cube = new THREE.Mesh(geometry, material)
 
-    return output
-
+    //Move into place
+    cube.position.setX(p1.x);
+    cube.position.setY(p1.y);
+    cube.position.setZ(p1.z);
+    cube.userData = edgeUserData
+    cube.userData.type = 'columnColumnConnector'
+    scene.add(cube)
+    pickableObjects.push(cube);
+    originalMaterials[cube.uuid] = cube.material;
 }
 
-function getFaceFloorNum(face: any) {
-    const pFloorNum = "$.edges.*.*.floor";
-    let floorNum = jsonpath.query(face, pFloorNum);
-
-    var filteredArray = floorNum.filter(function (item, pos) {
-        return floorNum.indexOf(item) == pos;
-    });
-
-    return filteredArray;
-}
-
-function getSlabVertex(face: any) {
-
-    const x = "$.edges.*";
-    let edges = jsonpath.query(face, x);
-
-    const listOfVertex = edges.map(e => {
-        return {
-            "start": new Vector3(e.start.x, e.start.z, e.start.y),
-            "end": new Vector3(e.end.x, e.end.z, e.end.y)
-        }
-    })
-
-    return getOrderedVertexFromEdge(listOfVertex);
-
-}
-
-function getOrderedVertexFromEdge(edges: any[]) {
-
-    let [firstV, ...restOfVs] = edges;
-
-    const orderVertex: Vector3[] = []
-    orderVertex.push(firstV.start);
-    orderVertex.push(firstV.end);
-
-    let index = firstV.end;
-    while (orderVertex.length < edges.length) {
-
-        const matchedStart = restOfVs.find(v => v && v.start.equals(index));
-        if (matchedStart) {
-            orderVertex.push(matchedStart.end);
-            index = matchedStart.end;
-            delete restOfVs[restOfVs.indexOf(matchedStart)]
-            continue;
-        }
-
-        const matchedEnd = restOfVs.find(v => v && v.end.equals(index))
-        if (matchedEnd) {
-            orderVertex.push(matchedEnd.start);
-            index = matchedEnd.start;
-            delete restOfVs[restOfVs.indexOf(matchedEnd)]
-            continue;
-        }
-    }
-
-    return orderVertex;
-
-}
-
-function isVertexsVertical(vertexs: Vector3[]) {
-    const p1 = vertexs[0];
-    const p2 = vertexs[1];
-
-    if (Math.abs(p1.y - p2.y) > 0
-        && Math.abs(p1.x - p2.x) < 1
-        && Math.abs(p1.z - p2.z) < 1) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-function isEdgeVertical(edge: any) {
-
-    const points = edge.vertex
-
-    return isVertexsVertical(points)
-
-}
-
-function isVertexEqual(e1: Vector3, e2: Vector3) {
-    return e1.x === e2.x && e1.y === e2.y && e1.z === e2.z;
-}
-
-function getUnique(points: any[]) {
-    let output: any[] = [];
-
-    points.forEach(p => {
-
-        let found = output.find(o => {
-            return isEdgeSame(p.vertex, o.vertex)
-        })
-        if (!found) {
-            output.push(p);
-        }
-
-    })
-
-    return output;
-}
-
-function isEdgeSame(e1: Vector3[], e2: Vector3[]) {
-
-    const PRECISION = 1e-8;
-    return (
-        (precise(e1[0]).equals(precise(e2[0])) && precise(e1[1]).equals(precise(e2[1])))
-        || (precise(e1[0]).equals(precise(e2[1])) && precise(e1[1]).equals(precise(e2[0])))
-    )
-}
-
-function getOutputData(id: any) {
-    // const x = `$.data.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')]`
-    const edge = `$.data.elements[?(@.attributes.edgeId == '${id}')]`
-    const face = `$.data.elements[?(@.attributes.faceId == '${id}')]`
-    let edgeData = jsonpath.query(jOutput, edge);
-    let faceData = jsonpath.query(jOutput, face);
-
-
-    return edgeData.concat(faceData)
-}
-
-function getOutputDataWithConfig(id: any) {
-
-    const columnJPath = `$.elements[?(@.type == 'column' && @.attributes.edgeId == '${id}')].attributes.columnConfigExternalRefId`
-    let columnConfigIds = jsonpath.query(jOutput, columnJPath);
-
-    const configId = columnConfigIds[0];
-    const columnConfigJPath = `$.elements[?(@.type == 'columnConfiguration' && @.externalRefId == '${configId}')]`
-    let data = jsonpath.query(jOutput, columnConfigJPath)
-
-    return data
-}
-
-
-function precise(data: Vector3) {
-    return new THREE.Vector3(
-        parseFloat(data.x.toFixed(DECIMAL_POINT)),
-        parseFloat(data.y.toFixed(DECIMAL_POINT)),
-        parseFloat(data.z.toFixed(DECIMAL_POINT)));
-}
-
-//End of - Json parsing
 
 function updateStructureInScene(typeToUpdate: any) {
     const objs = pickableObjects.filter(obj => obj.userData.type === typeToUpdate)
@@ -773,8 +699,14 @@ function updateStructureInScene(typeToUpdate: any) {
         case 'beam':
             showLevel = beamShowLevel
             break;
-        case 'slab':
+        case 'face':
             showLevel = slabShowLevel
+            break;
+        case 'columnColumnConnector':
+            showLevel = colColConShowLevel;
+            break;
+        case 'plate':
+            showLevel = plateShowLevel;
             break;
         default:
             console.log(`Error`);
@@ -799,40 +731,92 @@ function removeStructureFromScene() {
     wireframeObjects = []
 }
 
-function parseAndDrawSkeleton() {
+function parseAndDrawSkeleton(skeleton: any, clearStructure: boolean = true) {
 
     //Clear when redraw
-    removeStructureFromScene()
+    if (clearStructure) {
+        removeStructureFromScene()
+    }
 
     //Draw column
-    const vEdge = parseEdges(jSkeleton);
-    const verticalEdge = getUnique(vEdge.filter(isEdgeVertical));
+    const vEdge = Parser.parseEdges(skeleton);
+    const verticalEdge = Parser.getUnique(vEdge.filter(Parser.isEdgeVertical));
     console.log("Num of unique verticalEdge " + verticalEdge.length)
 
-    const displayColumn = verticalEdge.filter(e => e.userData.floorLevel !== 0)
-    displayColumn.forEach(e => drawVEdge(e));
+    const displayColumn = verticalEdge.filter((e: any) => e.userData.floorLevel !== 0)
+    displayColumn.forEach((e: any) => drawVEdge(e));
 
     //Draw face
-    const slabs = parseSlabs(jSkeleton)
-    const uniqueSlabs = getUniqueFace(slabs)
+    const slabs = Parser.parseFaces(skeleton)
+    // const uniqueSlabs = slabs
+    const uniqueSlabs = Parser.getUniqueFace(slabs)
     console.log("Num of unique horizantal slabs " + uniqueSlabs.length)
 
-    const displaySlabs = uniqueSlabs.filter(e => e.userData.floorLevel !== 0)
-    displaySlabs.forEach(s => drawFace(s))
+    const displaySlabs = uniqueSlabs.filter((e: { userData: { floorLevel: number; }; }) => e.userData.floorLevel !== 0)
+    displaySlabs.forEach((s: any) => drawFace(s))
 
     //Draw beam
-    const hEdge = parseEdges(jSkeleton);
-    const horizontalEdge = getUnique(hEdge.filter(e => !isEdgeVertical(e)))
+    const hEdge = Parser.parseEdges(skeleton);
+    const horizontalEdge = Parser.getUnique(hEdge.filter((e: any) => !Parser.isEdgeVertical(e)))
     console.log("Num of horizontalEdge " + horizontalEdge.length)
 
-    const displayBeams = horizontalEdge.filter(e => e.userData.floorLevel !== 0)
-    displayBeams.forEach(e => drawHEdge(e))
+    const displayBeams = horizontalEdge.filter((e: { userData: { floorLevel: number; }; }) => e.userData.floorLevel !== 0)
+    displayBeams.forEach((e: any) => drawHEdge(e))
+
+    //Plates
+    const plates = Parser.parsePlateSet(jOutput)
+    plates.forEach(p => drawPlate(p))
+    updateStructureInScene('plate')
+
+
+    //Draw connector
+    const ccConnectorEdge = Parser.parseColumnColumnConnector(jOutput, pickableObjects);
+    ccConnectorEdge.forEach((e: any) => drawCCConnector(e))
+    updateStructureInScene('columnColumnConnector')
+
+
+    //Collect slab Beam connector - slab
+    //Calculate and display text on how many connector for each slab
+    // When slab is selected highlight connected beam
+
 
     //Update count info
     updateSkeletonInfo()
 }
 
+function isPointOnLine(p1: Vector3, p2: Vector3, pointToCheck: Vector3) {
+    let c = new THREE.Vector3();
+
+    const vP1 = p1.clone().sub(pointToCheck)
+    const vP2 = p2.clone().sub(pointToCheck)
+    c.crossVectors(vP1, vP2)
+    const length = c.length();
+    const isOnPoint = length != 0;
+    return isOnPoint;
+}
+
+function isPointOnHorizontalLine(p1: Vector3, p2: Vector3, pointToCheck: Vector3) {
+    let c = new THREE.Vector3();
+
+    const vP1 = p1.clone().sub(pointToCheck)
+    const vP2 = p2.clone().sub(pointToCheck)
+    c.crossVectors(vP1, vP2)
+    const length = c.length();
+    const isOnPoint = length != 0;
+    return isOnPoint;
+}
+
+function getMidpoint(p1: Vector3, p2: Vector3) {
+    let x = (p1.x + p2.x) / 2
+    let y = (p1.y + p2.y) / 2
+    let z = (p1.z + p2.z) / 2
+
+    return new THREE.Vector3(x, y, z)
+}
+
 init()
 initGUI()
+
+
 animate()
 
